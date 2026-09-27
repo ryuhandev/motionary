@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { __testHooks } from '../public/js/preset.js';
 
-const { mapFxId, mapParamKey } = __testHooks;
+const { mapFxId, mapParamKey, normalizeBlend, fontStackFor, shapeKindOf } = __testHooks;
 
 describe('mapFxId — tidak ada lagi alias kategori salah', () => {
   const cases = [
@@ -61,5 +61,48 @@ describe('mapParamKey — param penting tidak hilang/tertabrakan', () => {
     assert.equal(mapParamKey('offset', 'feather'), 'feather');
     assert.equal(mapParamKey('transform', 'alpha'), 'alpha');
     assert.equal(mapParamKey('shake-parts', 'magnitude'), 'mag');
+  });
+});
+
+describe('mapFxId — colorize/colorhot id sendiri', () => {
+  it('bukan exposure', () => {
+    assert.equal(mapFxId('com.alightcreative.effects.colorize'), 'colorize');
+    assert.equal(mapFxId('com.alightcreative.effects.colorhot'), 'colorhot');
+  });
+});
+
+describe('normalizeBlend — blending preset tidak hilang', () => {
+  it('linear-dodge preset -> add', () => {
+    assert.equal(normalizeBlend('linear-dodge'), 'add');
+    assert.equal(normalizeBlend('normal'), 'normal');
+    assert.equal(normalizeBlend(null), 'normal');
+    assert.equal(normalizeBlend('multiply'), 'multiply');
+    assert.equal(normalizeBlend('overlay'), 'overlay');
+    assert.equal(normalizeBlend('sesuatu-aneh'), 'normal');
+  });
+});
+
+describe('fontStackFor — attr font AM', () => {
+  it('googlefonts name+weight', () => {
+    const f = fontStackFor('googlefonts?name=Roboto&weight=400');
+    assert.equal(f.family, 'Roboto');
+    assert.equal(f.weight, 400);
+    assert.ok(f.stack.includes('Roboto'));
+  });
+  it('kosong -> sans-serif aman', () => {
+    const f = fontStackFor('');
+    assert.ok(f.stack.includes('sans-serif'));
+  });
+});
+
+describe('shapeKindOf — varian shape AM', () => {
+  it('dikenal lolos, asing -> rect', () => {
+    assert.equal(shapeKindOf('.rect'), 'rect');
+    assert.equal(shapeKindOf('.roundrect'), 'roundrect');
+    assert.equal(shapeKindOf('.moon'), 'moon');
+    assert.equal(shapeKindOf('.teardrop'), 'teardrop');
+    assert.equal(shapeKindOf('.stamp'), 'stamp');
+    assert.equal(shapeKindOf('.sesuatu'), 'rect');
+    assert.equal(shapeKindOf(null), 'rect');
   });
 });

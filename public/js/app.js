@@ -1,5 +1,5 @@
 import { FX_CATALOG, applyFxStack, applyTransformFx, fxDefault } from './fx.js';
-import { parseAMXML, xmlToProject, EXAMPLE_LINK } from './preset.js';
+import { parseAMXML, xmlToProject, EXAMPLE_LINK, fontStackFor } from './preset.js';
 import * as AMGL from './amgl.js';
 import { framePlanForExport, audioChunkTimestampUs, dimsForTargetShort, bitrateForRes, cameraZoomOf, RES_SHORT_STEPS, qualityKeyOf, qualityDef, videoBitrate, estimateBytes, fmtSize } from './export-plan.js';
 
@@ -594,7 +594,7 @@ function rasterContent(l, T, tf, metricsOnly){
   c.scale(fw/100,fh/100);
   c.globalAlpha=clamp(l.fillAlpha??100,0,100)/100;
   if(l.shadow?.on){ c.shadowColor=l.shadow.color||'#000'; c.shadowBlur=(l.shadow.blur||12)*sc; c.shadowOffsetX=(l.shadow.dx||0)*sc; c.shadowOffsetY=(l.shadow.dy||0)*sc }
-  if(l.type==='text'&&l.text){ drawText(c,l) }
+  if(l.type==='text'&&l.text){ drawText(c,l,T) }
   else if((l.type==='image'||l.type==='video')&&l.mediaSrc){ drawMedia(c,l,T) }
   else { drawShape(c,l) }
   if(l.border?.on){ c.shadowColor='transparent'; c.shadowBlur=0; c.lineWidth=l.border.width||4; c.strokeStyle=l.border.color||'#fff'; strokeShape(c,l) }
@@ -708,7 +708,7 @@ function drawLayer(ctx, l, time=S.T){
   // (fx seperti tile mengisi latar opaque -> alpha 0.6 akan hilang bila di-bake duluan)
   wctx.globalAlpha=clamp(l.fillAlpha??100,0,100)/100;
   if(l.shadow?.on){ wctx.shadowColor=l.shadow.color||'#000'; wctx.shadowBlur=l.shadow.blur||12; wctx.shadowOffsetX=l.shadow.dx||0; wctx.shadowOffsetY=l.shadow.dy||0 }
-  if(l.type==='text'&&l.text){ drawText(wctx,l) }
+  if(l.type==='text'&&l.text){ drawText(wctx,l,T) }
   else if((l.type==='image'||l.type==='video')&&l.mediaSrc){ drawMedia(wctx,l,T) }
   else { drawShape(wctx,l) }
   if(l.border?.on){ wctx.shadowColor='transparent'; wctx.shadowBlur=0; wctx.lineWidth=l.border.width||4; wctx.strokeStyle=l.border.color||'#fff'; strokeShape(wctx,l) }
@@ -807,19 +807,32 @@ function drawShape(c,l){
   } else c.fillStyle=l.color||'#E14E7A';
   const s=100, r=l.corner??24;
   c.beginPath();
+  let fr='nonzero';
+  const polyPath=(n,ro,rot0=-Math.PI/2)=>{ for(let i=0;i<n;i++){ const a=rot0+i*Math.PI*2/n, px=Math.cos(a)*ro, py=Math.sin(a)*ro; i?c.lineTo(px,py):c.moveTo(px,py) } c.closePath() };
   switch(l.shapeKind){
     case 'circle': c.arc(0,0,50,0,Math.PI*2); break;
-    case 'tri': c.moveTo(0,-55); c.lineTo(50,40); c.lineTo(-50,40); c.closePath(); break;
+    case 'tri': case 'triangle': c.moveTo(0,-55); c.lineTo(50,40); c.lineTo(-50,40); c.closePath(); break;
     case 'star': starPath(c,0,0,5,50,22); break;
     case 'plus': plusPath(c,50); break;
-    case 'donut': c.arc(0,0,50,0,Math.PI*2); c.arc(0,0,28,0,Math.PI*2,true); break;
+    case 'donut': c.arc(0,0,50,0,Math.PI*2); c.arc(0,0,28,0,Math.PI*2,true); fr='evenodd'; break;
+    case 'moon': c.arc(0,0,50,0,Math.PI*2); c.arc(22,-12,42,0,Math.PI*2,true); fr='evenodd'; break;
+    case 'pie': c.moveTo(0,0); c.arc(0,0,50,-Math.PI/2,-Math.PI/2+Math.PI*1.5); c.closePath(); break;
+    case 'teardrop': c.moveTo(0,-52); c.bezierCurveTo(34,-10,50,8,50,22); c.arc(0,22,50,0,Math.PI); c.bezierCurveTo(-50,8,-34,-10,0,-52); c.closePath(); break;
+    case 'quad': c.moveTo(0,-50); c.lineTo(50,0); c.lineTo(0,50); c.lineTo(-50,0); c.closePath(); break;
+    case 'penta': polyPath(5,50); break;
+    case 'poly': polyPath(6,50); break;
+    case 'multifoil': for(const [px,py] of [[0,-24],[23,8],[-23,8],[0,0]]){ c.moveTo(px+30,py); c.arc(px,py,30,0,Math.PI*2) } break;
+    case 'calloutrr': roundRect(c,-50,-42,100,84,18); c.moveTo(-14,42); c.lineTo(-30,58); c.lineTo(6,42); c.closePath(); break;
+    case 'stamp': c.arc(0,0,50,0,Math.PI*2); c.arc(0,0,36,0,Math.PI*2,true); fr='evenodd'; break;
     case 'arrow': c.moveTo(-40,-18);c.lineTo(10,-18);c.lineTo(10,-32);c.lineTo(45,0);c.lineTo(10,32);c.lineTo(10,18);c.lineTo(-40,18);c.closePath(); break;
     case 'line': c.rect(-50,-6,100,12); break;
+    case 'wideline': c.rect(-50,-15,100,30); break;
+    case 'arc': c.lineWidth=20; c.strokeStyle=c.fillStyle; c.beginPath(); c.arc(0,0,38,Math.PI*0.15,Math.PI*1.35); c.stroke(); return;
     default:
       if(l.shapeKind==='rect') c.rect(-50,-50,100,100);
       else roundRect(c,-50,-50,100,100,r);
   }
-  c.fill();
+  c.fill(fr);
 }
 function strokeShape(c,l){
   c.beginPath();
@@ -831,9 +844,127 @@ function strokeShape(c,l){
 function roundRect(c,x,y,w,h,r){ c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath() }
 function starPath(c,x,y,n,ro,ri){ for(let i=0;i<n*2;i++){const r=i%2?ri:ro;const a=i*Math.PI/n-Math.PI/2;const px=x+Math.cos(a)*r,py=y+Math.sin(a)*r;i?c.lineTo(px,py):c.moveTo(px,py)}c.closePath() }
 function plusPath(c,s){ const t=s*0.32; c.moveTo(-t,-s);c.lineTo(t,-s);c.lineTo(t,-t);c.lineTo(s,-t);c.lineTo(s,t);c.lineTo(t,t);c.lineTo(t,s);c.lineTo(-t,s);c.lineTo(-t,t);c.lineTo(-s,t);c.lineTo(-s,-t);c.lineTo(-t,-t);c.closePath() }
-function drawText(c,l){
-  const t=l.text; c.fillStyle=t.color||'#fff'; c.font='700 '+ (t.size||64) +'px '+t.font+', Arial'; c.textAlign='center'; c.textBaseline='middle';
-  c.fillText(t.content||'Teks',0,0);
+// Evaluasi satu param fx skalar dgn keyframe (mirip evalFxParam, tanpa katalog).
+function fxScalar(f,key,T,def){
+  try{
+    const kf=(f.kf&&f.kf[key])||[];
+    if(kf.length){
+      const s=[...kf].sort((a,b)=>a.t-b.t);
+      if(T<=s[0].t) return s[0].v;
+      if(T>=s[s.length-1].t) return s[s.length-1].v;
+      let i=0; while(i<s.length-1&&T>s[i+1].t)i++;
+      const a=s[i],b=s[i+1],p=(T-a.t)/Math.max(1,b.t-a.t);
+      return lerp(a.v,b.v,easeOf(b.ease||'linear',p));
+    }
+    if(f.params&&f.params[key]!==undefined&&f.params[key]!==null) return f.params[key];
+  }catch{}
+  return def;
+}
+// Muat font Google Fonts sesuai attr AM (best-effort; offline -> fallback).
+const _fontAsked=new Set();
+function ensureWebFont(fontAttr){
+  try{
+    const key=String(fontAttr||'');
+    if(!key||_fontAsked.has(key)||!document.fonts) return;
+    _fontAsked.add(key);
+    const m=key.match(/name=([^&]+).*?weight=(\d+)/);
+    if(!m) return;
+    const fam=decodeURIComponent(m[1].replace(/\+/g,' ')), wt=m[2];
+    const url='https://fonts.googleapis.com/css2?family='+encodeURIComponent(fam)+':wght@'+wt+'&display=swap';
+    const ff=document.createElement('link'); ff.rel='stylesheet'; ff.href=url;
+    ff.onload=()=>{ try{ document.fonts.load(wt+' 32px "'+fam+'"').then(()=>{ if(S.active) renderFrame() }).catch(()=>{}) }catch{} };
+    document.head.appendChild(ff);
+  }catch{}
+}
+function drawText(c,l,T){
+  const t=l.text||{};
+  ensureWebFont(t.font);
+  const fxs=(l.fx||[]).filter(f=>f.on!==false);
+  const ff=(id)=>fxs.find(f=>f.id===id);
+  let txt=String(t.content??'Teks');
+  // --- efek teks behavioral ( spesifikasi script asli AM ) ---
+  const tp=ff('textprogress');
+  if(tp){
+    const st=fxScalar(tp,'start',T,0)??0, en=fxScalar(tp,'end',T,1)??1;
+    const cur=fxScalar(tp,'cursor',T,0)??0;
+    const cc=['','_','█','▌','▁','▏','▕','▯','▎'][Math.max(0,Math.min(8,Math.round(cur)))]||'';
+    let blink='';
+    if(fxScalar(tp,'blink',T,0)){
+      const dur=Math.max(1,((l.endMs??T+1)-(l.startMs??T)));
+      if(((T/1000)*dur*2)%2>1) blink='';
+      else blink=cc;
+      txt=txt.slice(Math.round(txt.length*st),Math.round(txt.length*en))+blink;
+    } else txt=txt.slice(Math.round(txt.length*st),Math.round(txt.length*en))+cc;
+  }
+  const cnt=ff('counter');
+  if(cnt&&/[-+0-9]/.test(txt)){
+    const sc=fxScalar(cnt,'scale',T,1)??1, off=fxScalar(cnt,'offset',T,0)??0;
+    txt=txt.split(/([-+]?[0-9,]*\.[0-9,]*|[-+]?[0-9,]+)/g).map(seg=>{
+      if(!seg||!/^[-+]?[0-9,]*\.?[0-9,]+$/.test(seg)) return seg;
+      const hasComma=seg.includes(',');
+      const fx=parseFloat(seg.replace(/,/g,''));
+      if(!Number.isFinite(fx)) return seg;
+      const adj=fx*sc+off;
+      const dp=(seg.split('.')[1]||'').replace(/,/g,'').length;
+      let out=adj.toFixed(dp);
+      if(hasComma) out=out.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+      return out;
+    }).join('');
+  }
+  const tr=ff('textrand');
+  if(tr){
+    const amt=fxScalar(tr,'amount',T,0)??0;
+    if(amt>0.001){
+      const st=fxScalar(tr,'start',T,0)??0, en=fxScalar(tr,'end',T,1)??1;
+      const cs=fxScalar(tr,'charset',T,0)??0, evo=fxScalar(tr,'evo',T,0)??0;
+      const seed=fxScalar(tr,'seed',T,0)??0;
+      const sets=['ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz',
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz','0123456789'];
+      const chars=sets[Math.max(0,Math.min(3,Math.round(cs)))]||sets[0];
+      const i0=Math.round(txt.length*st), i1=Math.round(txt.length*en);
+      const h=(n)=>{ const x=Math.sin(n*7.3921+seed*13.7+evo*2.9)*43758.5453; return x-Math.floor(x) };
+      txt=txt.split('').map((ch,i)=>{
+        if(i<i0||i>=i1||ch===' ') return ch;
+        return (h(i)+1)/2>=amt?ch:chars[Math.floor(h(i+99)*chars.length)%chars.length];
+      }).join('');
+    }
+  }
+  // --- layout: wrap + align + spacing (unit lokal: 1 AM px = 2 unit) ---
+  const fam=fontStackFor(t.font||'');
+  const fsPx=Math.max(4,(t.size||48)*2);
+  const weight=(fam.weight>=600||/bold/i.test(String(t.font||'')))?'700':'400';
+  c.fillStyle=t.color||'#fff';
+  c.font=weight+' '+fsPx+'px '+fam.stack;
+  c.textBaseline='middle';
+  const align=String(t.align||'center').toLowerCase();
+  c.textAlign=align==='left'?'left':align==='right'?'right':'center';
+  const wrapU=Math.max(0,(t.wrapWidth||0)*2);
+  const tsp=ff('text-spacing');
+  const lsEm=tsp?(fxScalar(tsp,'letterspacing',T,0)??0):0;
+  const lhMul=tsp?(fxScalar(tsp,'linespacing',T,1)??1):1;
+  // bungkus manual (measureText) agar wrapWidth AM dihormati
+  const words=txt.split(/(\s+)/);
+  const lines=[]; let cur='';
+  const meas=(s)=>{ try{ return c.measureText(s).width }catch{ return s.length*fsPx*0.6 } };
+  for(const wd of words){
+    const trial=cur+wd;
+    if(wrapU>0&&cur&&meas(trial)+(trial.length*lsEm*fsPx)>wrapU&&cur.trim()){
+      lines.push(cur); cur=wd.trimStart();
+    } else cur=trial;
+  }
+  if(cur||!lines.length) lines.push(cur);
+  const lh=fsPx*Math.max(0.5,lhMul);
+  const y0=-((lines.length-1)*lh)/2;
+  const drawLine=(line,y)=>{
+    if(!(lsEm>0.001)){ c.fillText(line,0,y); return }
+    const adv=lsEm*fsPx;
+    let total=meas(line)+adv*Math.max(0,line.length-1);
+    let x=align==='right'?-total:align==='left'?0:-total/2;
+    const prev=c.textAlign; c.textAlign='left';
+    for(const ch of line){ c.fillText(ch,x,y); x+=meas(ch)+adv }
+    c.textAlign=prev;
+  };
+  lines.forEach((ln,i)=>drawLine(ln,y0+i*lh));
 }
 function drawMedia(c,l,time=S.T){
   const el=l._img||l._vid;

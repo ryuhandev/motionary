@@ -265,6 +265,11 @@ async function getFxDef(fxIdShort){
           params.push({ id: el.getAttribute('id'), kind:'texture', srcType: el.getAttribute('srcType') });
         } else if(tag==='point'){
           params.push({ id: el.getAttribute('id'), kind:'point', def:[0,0] });
+        } else if(tag==='hue-disc'){
+          // cakram hue AM: triplet bias (vec3). Tanpa ini shader yg
+          // memakainya (colorize/colorhot/…) gagal kompilasi -> efek hilang.
+          const dv=String(el.getAttribute('default')||'0,1,0').split(',').map(x=>parseFloat(x)||0);
+          params.push({ id: el.getAttribute('id'), kind:'vec3', def:[dv[0]||0,dv[1]||0,dv[2]||0] });
         } else if(tag==='color'){
           params.push({ id: el.getAttribute('id'), kind:'color', def: el.getAttribute('default')||'#ffffffff' });
         }
@@ -288,6 +293,7 @@ async function getFxDef(fxIdShort){
         else if(p.kind==='bool') pre += `uniform bool ${p.id};\n`;
         else if(p.kind==='selector') pre += `uniform int ${p.id};\n`;
         else if(p.kind==='point') pre += `uniform vec2 ${p.id};\n`;
+        else if(p.kind==='vec3') pre += `uniform vec3 ${p.id};\n`;
         else if(p.kind==='color') pre += `uniform vec4 ${p.id};\n`;
         else if(p.kind==='texture' && p.id!=='inputImg' && p.id!=='comp')
           pre += `uniform acTexture ${p.id};\n`; // map eksternal: bind dummy
@@ -541,6 +547,12 @@ function setParamUniforms(prog, def, fxObj, T, evalFxParam){
     } else if(p.kind==='color'){
       const cc=parseColorParam(v);
       gl.uniform4f(loc, cc[0],cc[1],cc[2],cc[3]);
+    } else if(p.kind==='vec3'){
+      let a=v;
+      if(typeof a==='string') a=a.split(',').map(x=>parseFloat(x)||0);
+      if(typeof a==='number') a=[a,0,0];
+      a=(Array.isArray(a)?a:[0,0,0]);
+      gl.uniform3f(loc, +a[0]||0, +a[1]||0, +a[2]||0);
     } else if(p.kind==='bool' || p.kind==='selector'){
       gl.uniform1i(loc, Math.round(+v||0));
     } else gl.uniform1f(loc, +v);

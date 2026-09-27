@@ -61,6 +61,43 @@ function argbAlpha(v){
   }
   return 1;
 }
+// Normalisasi blending AM -> kunci blendMap app (pure, bisa diuji).
+// 'linear-dodge' (dipakai preset) = add/lighter; tak dikenal -> normal
+// (JANGAN fallback ke exposure — itu yang merusak render).
+export function normalizeBlend(b){
+  const n=String(b||'normal').toLowerCase().replace(/[^a-z]/g,'');
+  const map={normal:'normal',multiply:'multiply',darken:'darken',darkercolor:'darken',
+    colorburn:'color-burn',burnlinear:'color-burn',linearburn:'burn-linear',
+    screen:'screen',colordodge:'color-dodge',dodgelinear:'add',add:'add',
+    lineardodge:'add',lighten:'lighten',lightercolor:'lighten',
+    overlay:'overlay',softlight:'soft-light',softoverlay:'soft-light',
+    hardlight:'hard-light',vividlight:'hard-light',pinlight:'hard-light',
+    difference:'difference',exclusion:'exclusion',subtract:'difference',
+    divide:'difference',hue:'hue',saturation:'saturation',color:'color',
+    luminosity:'luminosity'};
+  return map[n]||'normal';
+}
+// 'googlefonts?name=Roboto&weight=400' -> {family, weight, stack CSS}.
+// Font proprietary AM tidak dibundel; mapping ini + FontFace best-effort
+// (Google Fonts CDN) + fallback sistem.
+export function fontStackFor(fontAttr){
+  const s=String(fontAttr||'');
+  const m=s.match(/name=([^&]+).*?weight=(\d+)/);
+  const fam=m?decodeURIComponent(m[1].replace(/\+/g,' ')):'sans-serif';
+  const wt=m?+m[2]:400;
+  const generic=/mono/i.test(fam)?'monospace':(/\bserif\b/i.test(fam)&&!/sans/i.test(fam))?'serif':'sans-serif';
+  return { family:fam, weight:wt, stack:'"'+fam+'",'+generic };
+}
+// s=".rect" AM -> kind renderer. Tak dikenal -> 'rect' (terdokumentasi).
+export function shapeKindOf(sAttr){
+  const n=String(sAttr||'.rect').toLowerCase().replace(/^\./,'');
+  const known=['rect','roundrect','circle','tri','triangle','star','plus','donut',
+    'arrow','line','wideline','moon','pie','teardrop','arc','quad','poly','penta',
+    'multifoil','calloutrr','stamp'];
+  if(known.includes(n)) return n;
+  if(n==='ellipse') return 'circle';
+  return 'rect';
+}
 function vec(s){
   if(!s) return null;
   const p=String(s).split(/[,\s]+/).map(Number);
@@ -136,6 +173,13 @@ function mapFxId(name){
   if(n.includes('blink')) return 'blink2';
   if(n.includes('rgbsep')) return 'rgbsep';
   if(n.includes('chromakey')||n.includes('chroma')||n.includes('greenscreen')) return 'chroma';
+  if(n.includes('colorize')) return 'colorize';
+  if(n.includes('colorhot')) return 'colorhot';
+  if(n.includes('textprogress')) return 'textprogress';
+  if(n.includes('textspacing')) return 'text-spacing';
+  if(n.includes('textrand')) return 'textrand';
+  if(n.includes('texttransform')) return 'text-transform';
+  if(n.includes('counter')) return 'counter';
   if(n.includes('tile')) return 'tile';
   if(n.includes('motionblur4')) return 'motionblur4';
   if(n.includes('motionblur2')) return 'motionblur2';
@@ -167,7 +211,7 @@ function mapFxId(name){
   return 'exposure';
 }
 function prettyFx(id, raw){
-  const m={lift:'Lift',exposure:'Exposure',satvib:'Saturasi',invert:'Invert',colortune2:'Color Tune',threshold:'Threshold',findedges:'Find Edges',gaussianblur:'Gaussian Blur',motionblur3:'Motion Blur',motionblur2:'Motion Blur 2',motionblur4:'Motion Blur 4',blink2:'Blink',tile:'Tiles',halftonedots:'Halftone Dots',halftonelines:'Halftone Lines',wavewarp2:'Wave Warp',turbulentdisplace3:'Turbulent Displace',turbulentdisplace:'Turbulent Displace',randomdisplace:'Random Displace',displacemap3:'Displace Map',lumakey3:'Luma Key',spin:'Spin',spinblur:'Spin Blur',spinblur2:'Spin Blur 2',swirl4:'Swirl',swirl3:'Swirl',scatter:'Repeat Scatter',brightness:'Brightness',contrast:'Contrast',hue:'Hue Shift',chroma:'Chroma Key',vignette:'Vignette',pixel:'Pixelate',noise:'Noise',poster:'Posterize',mirror:'Mirror',shake:'Shake',shake2:'Shake',oscillate:'Oscillate',oscillate2:'Oscillate 2',oscillate3:'Oscillate',stretch2:'Stretch',stretchsegment:'Stretch Segment',rgbsep:'RGB Split',sharpen:'Sharpen',zoomblur:'Zoom Blur',boxblur:'Box Blur',dblur:'Directional Blur',fade:'Fade',vibrance:'Vibrance',gamma:'Gamma',colortemperature:'Color Temperature',colorhot:'Color Hot',flip:'Flip',tint:'Tint',pulsate:'Pulsate',pulsate2:'Pulsate 2','pulse-opacity':'Pulse Opacity','pulse-opacity2':'Pulse Opacity 2',transform:'Transform',offset:'Offset','move-along-path':'Move Along Path','move-along-path2':'Move Along Path 2','move-along-path3':'Move Along Path 3','grow-parts':'Grow Parts','shake-parts':'Shake Parts'};
+  const m={lift:'Lift',exposure:'Exposure',satvib:'Saturasi',invert:'Invert',colortune2:'Color Tune',threshold:'Threshold',findedges:'Find Edges',gaussianblur:'Gaussian Blur',motionblur3:'Motion Blur',motionblur2:'Motion Blur 2',motionblur4:'Motion Blur 4',blink2:'Blink',tile:'Tiles',halftonedots:'Halftone Dots',halftonelines:'Halftone Lines',wavewarp2:'Wave Warp',turbulentdisplace3:'Turbulent Displace',turbulentdisplace:'Turbulent Displace',randomdisplace:'Random Displace',displacemap3:'Displace Map',lumakey3:'Luma Key',spin:'Spin',spinblur:'Spin Blur',spinblur2:'Spin Blur 2',swirl4:'Swirl',swirl3:'Swirl',scatter:'Repeat Scatter',brightness:'Brightness',contrast:'Contrast',hue:'Hue Shift',chroma:'Chroma Key',vignette:'Vignette',pixel:'Pixelate',noise:'Noise',poster:'Posterize',mirror:'Mirror',shake:'Shake',shake2:'Shake',oscillate:'Oscillate',oscillate2:'Oscillate 2',oscillate3:'Oscillate',stretch2:'Stretch',stretchsegment:'Stretch Segment',rgbsep:'RGB Split',sharpen:'Sharpen',zoomblur:'Zoom Blur',boxblur:'Box Blur',dblur:'Directional Blur',fade:'Fade',vibrance:'Vibrance',gamma:'Gamma',colortemperature:'Color Temperature',colorhot:'Color Hot',flip:'Flip',tint:'Tint',pulsate:'Pulsate',pulsate2:'Pulsate 2','pulse-opacity':'Pulse Opacity','pulse-opacity2':'Pulse Opacity 2',transform:'Transform',offset:'Offset','move-along-path':'Move Along Path','move-along-path2':'Move Along Path 2','move-along-path3':'Move Along Path 3','grow-parts':'Grow Parts','shake-parts':'Shake Parts',counter:'Counter',textprogress:'Typewriter','text-spacing':'Text Spacing',textrand:'Text Random','text-transform':'Text Transform',colorize:'Colorize',colorhot:'Color Hot'};
   return m[id]||String(raw||id).split('.').pop();
 }
 function mediaFileFromUri(uri){
@@ -175,6 +219,115 @@ function mediaFileFromUri(uri){
   return uri.startsWith('amproj:')?uri.slice(7):uri;
 }
 
+function parseEffectList(el, sMs, eMs, u2off, u2comp){
+  const fx=[]; let copyBg=false, adjFx=false, adjFxDef=null, fxLift=null;
+  el.querySelectorAll(':scope > effect').forEach(fn=>{
+    const raw=fn.getAttribute('id')||'effect';
+    const id=mapFxId(raw);
+    const f={id, name:prettyFx(id,raw), on:fn.getAttribute('hidden')!=='true', params:{}, kf:{},
+             raw:{params:{}, kf:{}}};
+    fn.querySelectorAll(':scope > property').forEach(p=>{
+      const k=p.getAttribute('name')||'amount';
+      const kfNodes=p.querySelectorAll('kf');
+      if(kfNodes.length){
+        const rk=[];
+        kfNodes.forEach(kf=>{
+          rk.push({t:normToMs(kf.getAttribute('t')??'0',sMs,eMs), v:scalar(kf.getAttribute('v'),0), ease:mapEase(kf.getAttribute('e')||'linear')});
+        });
+        rk.sort((a,b)=>a.t-b.t);
+        f.raw.kf[k]=rk;
+        f.raw.params[k]=rk[0].v;
+      } else if((p.getAttribute('type')||'')==='vec2'||(p.getAttribute('type')||'')==='vec3'){
+        const vv=String(p.getAttribute('value')||'0,0').split(',').map(x=>parseFloat(x)||0);
+        f.raw.params[k]=vv.length>=3? [vv[0]||0,vv[1]||0,vv[2]||0] : (vv.length>=2? [vv[0],vv[1]] : [vv[0]||0,0]);
+      } else {
+        f.raw.params[k]=scalar(p.getAttribute('value'),0);
+      }
+      if(FX_IGNORE.has(id+':'+k.toLowerCase())) return;
+      if(kfNodes.length){
+        const key=mapParamKey(id,k);
+        const scale=paramScale(id,k);
+        const kfs=[];
+        kfNodes.forEach(kf=>{
+          kfs.push({t:normToMs(kf.getAttribute('t')??'0',sMs,eMs), v:convertParam(id,key,scalar(kf.getAttribute('v'),0)*scale,u2off,u2comp), ease:mapEase(kf.getAttribute('e')||'linear')});
+        });
+        kfs.sort((a,b)=>a.t-b.t);
+        f.kf[key]=kfs;
+        f.params[key]=kfs[0].v;
+      } else {
+        const key=mapParamKey(id,k);
+        f.params[key]=convertParam(id,key,scalar(p.getAttribute('value'),0)*paramScale(id,k),u2off,u2comp);
+      }
+    });
+    if(id==='displacemap3'){ adjFx=true; adjFxDef=f; return }
+    if(id==='lift'){
+      const fill=Number(f.raw.params.fill??0);
+      if(fill<=0.001){ copyBg=true; fxLift=f; return }
+    }
+    if(!Object.keys(f.params).length) f.params={amount:50};
+    fx.push(f);
+  });
+  return {fx, copyBg, adjFx, adjFxDef, fxLift};
+}
+function parseTextEl(el, idx, proj, pkgId){
+  // Layer <text>: format ground-truth dari preset AM
+  // (attr size/font/wrapWidth/align + <content>).
+  const sMs=num(el.getAttribute('startTime'),0);
+  let eMs=num(el.getAttribute('endTime'),proj.durationMs);
+  if(eMs<=sMs) eMs=sMs+200;
+  const label=el.getAttribute('label')||('Teks '+(idx+1));
+  const fillColorEl=el.querySelector(':scope > fillColor');
+  const fillHex=argbToHex(fillColorEl?.getAttribute('value'), '#FFFFFF');
+  const fillA=Math.round(argbAlpha(fillColorEl?.getAttribute('value'))*100);
+  const tr=el.querySelector(':scope > transform');
+  const locV=vec(tr?.querySelector('location')?.getAttribute('value'))||[proj.w/2,proj.h/2];
+  const sclV=vec(tr?.querySelector('scale')?.getAttribute('value'))||[1,1];
+  let rotV=0;
+  const rotEl=tr?.querySelector('rotation, angle, rot');
+  if(rotEl) rotV=num(rotEl.getAttribute('value')??rotEl.textContent,0);
+  const contentEl=el.querySelector(':scope > content');
+  const L={ id:uid(), name:label.slice(0,32), type:'text', shapeKind:'rect',
+    visible:true, startMs:Math.round(sMs), endMs:Math.round(eMs),
+    x:locV[0], y:locV[1], z:locV[2]||0,
+    sizeRaw:[200,80],
+    sx:clampSigned((sclV[0]||1)*200,2,60000), sy:clampSigned((sclV[1]||1)*200,2,60000),
+    rot:rotV, skewX:0, skewY:0, opacity:100,
+    color:fillHex, fillAlpha:fillA,
+    border:{on:false,width:4,color:'#fff',pos:'DI DALAM'},
+    shadow:{on:false,blur:12,dx:0,dy:6,color:'#000',op:50},
+    blend:normalizeBlend(el.getAttribute('blending')), text:{
+      content:contentEl?String(contentEl.textContent||''):'',
+      color:fillHex,
+      size:num(el.getAttribute('size'),48)||48,
+      font:el.getAttribute('font')||'',
+      align:(el.getAttribute('align')||'center').toLowerCase(),
+      wrapWidth:num(el.getAttribute('wrapWidth'),0)||0,
+    }, mediaSrc:null, mediaKind:null,
+    mediaFillMode:'stretch',
+    speed:1, inMs:0, outMs:Infinity,
+    kf:{}, fx:[],
+    corner:6, copyBg:false, adjFx:false };
+  const opEl=tr?.querySelector('opacity');
+  if(opEl){
+    const kfs=parseKfList(opEl,sMs,eMs,100);
+    if(kfs.length){ L.kf.opacity=kfs; L.opacity=Math.round(kfs[0].v) }
+    else { const v=num(opEl.getAttribute('value'),1); L.opacity=Math.round(clampNum(v,0,1)*100) }
+  }
+  const locEl=tr?.querySelector('location');
+  if(locEl&&locEl.querySelector('kf')){
+    const [kx,ky]=parseKfVec(locEl,sMs,eMs);
+    if(kx.length){ L.kf.x=kx; L.x=kx[0].v }
+    if(ky.length){ L.kf.y=ky; L.y=ky[0].v }
+  }
+  const rotKfEl=tr?.querySelector('rotation');
+  if(rotKfEl&&rotKfEl.querySelector('kf')){
+    const kfs=parseKfList(rotKfEl,sMs,eMs,1);
+    if(kfs.length){ L.kf.rot=kfs; L.rot=kfs[0].v }
+  }
+  const pe=parseEffectList(el,sMs,eMs,1,2);
+  L.fx=pe.fx; L.copyBg=pe.copyBg; L.adjFx=pe.adjFx; L.adjFxDef=pe.adjFxDef; L.fxLift=pe.fxLift;
+  return L;
+}
 export function parseAMXML(txt, name='Preset', pkgId=null){
   const doc=new DOMParser().parseFromString(txt,'application/xml');
   if(doc.querySelector('parsererror')) throw new Error('XML rusak');
@@ -212,12 +365,18 @@ export function parseAMXML(txt, name='Preset', pkgId=null){
   });
 
   const shapes=[...doc.querySelectorAll('scene > shape')];
+  const texts=[...doc.querySelectorAll('scene > text')];
   // ============================================================
   // URUTAN (ground-truth via player referensi): XML belakangan
   // digambar DI ATAS (paint order = urutan dokumen). JANGAN dibalik.
   // renderLayerBar membalik sendiri untuk tampilan panel (atas=dulu).
+  // Layer <text> disisip sesuai posisi dokumennya (bukan selalu di atas).
   // ============================================================
-  shapes.forEach((el,idx)=>{
+  const items=[...shapes.map(el=>({el,text:false})),...texts.map(el=>({el,text:true}))];
+  try{ items.sort((a,b)=>(a.el.compareDocumentPosition(b.el)&4)?-1:1) }catch{}
+  items.forEach((it,idx)=>{
+    const el=it.el;
+    if(it.text){ proj.layers.push(parseTextEl(el,idx,proj,pkgId)); return }
     const sMs=num(el.getAttribute('startTime'),0);
     let eMs=num(el.getAttribute('endTime'),proj.durationMs);
     if(eMs<=sMs) eMs=sMs+200;
@@ -226,7 +385,8 @@ export function parseAMXML(txt, name='Preset', pkgId=null){
     const fillImage=el.getAttribute('fillVideo')||el.getAttribute('fillImage')||'';
     const sAttr=el.getAttribute('s')||'.rect';
     const fillColorEl=el.querySelector(':scope > fillColor');
-    const fillHex=argbToHex(fillColorEl?.getAttribute('value'), '#E14E7A');
+    // Tanpa fillColor -> HITAM (dulu pink #E14E7A -> overlay raksasa acak).
+    const fillHex=argbToHex(fillColorEl?.getAttribute('value'), '#000000');
     const fillA=Math.round(argbAlpha(fillColorEl?.getAttribute('value'))*100);
     const sizeEl=el.querySelector(':scope > property[name="size"]');
     const sizeV=vec(sizeEl?.getAttribute('value'))||[270,270];
@@ -243,7 +403,7 @@ export function parseAMXML(txt, name='Preset', pkgId=null){
     // (apapun ukuran comp). final_px = size*scale*2.
     // Konvensi app: sx = final_px*2 -> sx = rw*4.
     const rw=sizeV[0]*(sclV[0]||1), rh=sizeV[1]*(sclV[1]||1);
-    const L={ id:uid(), name:label.slice(0,32), type:'shape', shapeKind:sAttr.includes('roundrect')?'roundrect':(sAttr.includes('circle')?'circle':'rect'),
+    const L={ id:uid(), name:label.slice(0,32), type:'shape', shapeKind:shapeKindOf(sAttr),
       visible:true, startMs:Math.round(sMs), endMs:Math.round(eMs),
       x:locV[0], y:locV[1], z:locV[2]||0,
       sizeRaw:[sizeV[0]||100, sizeV[1]||100],
@@ -252,7 +412,7 @@ export function parseAMXML(txt, name='Preset', pkgId=null){
       color:fillHex, fillAlpha:fillA,
       border:{on:false,width:4,color:'#fff',pos:'DI DALAM'},
       shadow:{on:false,blur:12,dx:0,dy:6,color:'#000',op:50},
-      blend:'normal', text:null, mediaSrc:null, mediaKind:null,
+      blend:normalizeBlend(el.getAttribute('blending')), text:null, mediaSrc:null, mediaKind:null,
       mediaFillMode:el.getAttribute('mediaFillMode')||'stretch',
       speed:num(el.getAttribute('speed'),1)||1,
       inMs:el.hasAttribute('inTime')?num(el.getAttribute('inTime'),0):0,
@@ -328,66 +488,12 @@ export function parseAMXML(txt, name='Preset', pkgId=null){
       else { const v=num(opEl.getAttribute('value'),1); L.opacity=Math.round(clampNum(v,0,1)*100) }
     }
 
-    // ---- efek ----
-    // Konteks satuan: 1 unit param AM = 2 px comp (size = comp/2).
-    // u2off : unit -> piksel offscreen 200px (offscreen mewakili kotak layer)
-    // u2comp: unit -> piksel comp (untuk efek transform: shake/dsb)
+    // ---- efek (satuan: 1 unit AM = 2px comp; offscreen 200px) ----
     const u2off=100/Math.max(1,rw), u2comp=2;
-    // LIFT (Copy Background) fill=0 -> layer MENYALIN composite di bawahnya
-    // (ground-truth: layer "gelombang" tampil sebagai riak foto, bukan ungu)
     L.copyBg=false; L.adjFx=false;
-    el.querySelectorAll(':scope > effect').forEach(fn=>{
-      const raw=fn.getAttribute('id')||'effect';
-      const id=mapFxId(raw);
-      const f={id, name:prettyFx(id,raw), on:fn.getAttribute('hidden')!=='true', params:{}, kf:{},
-               // raw: nilai XML ASLI (tanpa konversi unit) — dipakai engine
-               // WebGL amgl.js (shader/script AM butuh satuan AM asli)
-               raw:{params:{}, kf:{}}};
-      fn.querySelectorAll(':scope > property').forEach(p=>{
-        const k=p.getAttribute('name')||'amount';
-        const kfNodes=p.querySelectorAll('kf');
-        // --- raw (nilai & key XML persis) ---
-        if(kfNodes.length){
-          const rk=[];
-          kfNodes.forEach(kf=>{
-            rk.push({t:normToMs(kf.getAttribute('t')??'0',sMs,eMs), v:scalar(kf.getAttribute('v'),0), ease:mapEase(kf.getAttribute('e')||'linear')});
-          });
-          rk.sort((a,b)=>a.t-b.t);
-          f.raw.kf[k]=rk;
-          f.raw.params[k]=rk[0].v;
-        } else if((p.getAttribute('type')||'')==='vec2'){
-          const vv=String(p.getAttribute('value')||'0,0').split(',').map(x=>parseFloat(x)||0);
-          f.raw.params[k]=(vv.length>=2)? [vv[0],vv[1]] : [vv[0]||0,0];
-        } else {
-          f.raw.params[k]=scalar(p.getAttribute('value'),0);
-        }
-        // --- terkonversi (path Canvas2D lama) ---
-        if(FX_IGNORE.has(id+':'+k.toLowerCase())) return;
-        if(kfNodes.length){
-          const key=mapParamKey(id,k);
-          const scale=paramScale(id,k);
-          const kfs=[];
-          kfNodes.forEach(kf=>{
-            kfs.push({t:normToMs(kf.getAttribute('t')??'0',sMs,eMs), v:convertParam(id,key,scalar(kf.getAttribute('v'),0)*scale,u2off,u2comp), ease:mapEase(kf.getAttribute('e')||'linear')});
-          });
-          kfs.sort((a,b)=>a.t-b.t);
-          f.kf[key]=kfs;
-          f.params[key]=kfs[0].v;
-        } else {
-          const key=mapParamKey(id,k);
-          f.params[key]=convertParam(id,key,scalar(p.getAttribute('value'),0)*paramScale(id,k),u2off,u2comp);
-        }
-      });
-      // displacemap3 tanpa peta input -> layer adjustment (isi tak digambar);
-      // simpan def utk path GL (amgl.js), path 2D tetap pakai flag adjFx
-      if(id==='displacemap3'){ L.adjFx=true; L.adjFxDef=f; return }
-      if(id==='lift'){
-        const fill=Number(f.raw.params.fill??0);
-        if(fill<=0.001){ L.copyBg=true; L.fxLift=f; return } // isi = salinan background (shader lift asli via GL)
-      }
-      if(!Object.keys(f.params).length) f.params={amount:50};
-      L.fx.push(f);
-    });
+    const peSh=parseEffectList(el,sMs,eMs,u2off,u2comp);
+    L.fx=peSh.fx; L.copyBg=peSh.copyBg; L.adjFx=peSh.adjFx; L.adjFxDef=peSh.adjFxDef; L.fxLift=peSh.fxLift;
+
     proj.layers.push(L);
   });
   if(!proj.layers.length) throw new Error('Tidak ada layer di XML');
@@ -410,7 +516,7 @@ function mapParamKey(fxId, raw){
     colortemperature:{amount:'amount'},
     threshold:{level:'level',threshold:'level',feather:'feather',invert:'invert',blendmode:'level'},
     findedges:{amount:'amount',smoothing:'amount',threshold:'amount',invert:'invert'},
-    gaussianblur:{radius:'radius',strength:'radius'},
+    gaussianblur:{radius:'radius',strength:'strength'},
     boxblur:{radius:'radius',strength:'radius'},
     dblur:{radius:'radius',strength:'radius',angle:'angle'},
     motionblur2:{tune:'tune',usepos:'usePos',usescale:'useScale',useangle:'useAngle'},
@@ -463,6 +569,13 @@ function mapParamKey(fxId, raw){
     contrast:{amount:'amount'},
     tint:{mix:'mix'},
     fade:{intime:'inMs',outtime:'outMs'},
+    colorize:{tint:'tint'},
+    colorhot:{color:'color',tint:'tint'},
+    textprogress:{start:'start',end:'end',cursor:'cursor',blink:'blink'},
+    'text-spacing':{letterspacing:'letterspacing',linespacing:'linespacing'},
+    counter:{scale:'scale',offset:'offset'},
+    textrand:{amount:'amount',evo:'evo',seed:'seed',start:'start',end:'end',charset:'charset',preservespace:'preserveSpace'},
+    'text-transform':{start:'start',end:'end',phase:'phase',component:'component',anchor:'anchor',offset:'offset',angle:'angle',scale:'scale',stretch:'stretch',alpha:'alpha',usefillcolor:'useFillColor',fillcolor:'fillColor',easein:'easeIn',easeout:'easeOut',overlap:'overlap',shape:'shape',randomorder:'randomOrder',seed:'seed'},
     vibrance:{amount:'amount'},
     gamma:{amount:'amount'},
     hue:{amount:'amount',shift:'amount'}
@@ -508,4 +621,4 @@ function convertParam(fxId, key, v, u2off=1, u2comp=2){
 }
 export function xmlToProject(t,n,p){ return parseAMXML(t,n,p) }
 // Hook pengujian (Node): verifikasi pemetaan id efek tanpa DOM.
-export const __testHooks = { mapFxId, mapParamKey, prettyFx };
+export const __testHooks = { mapFxId, mapParamKey, prettyFx, normalizeBlend, fontStackFor, shapeKindOf };

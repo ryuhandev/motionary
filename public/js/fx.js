@@ -15,6 +15,8 @@ export const FX_CATALOG = [
 {id:'colortune2',name:'Color Tune',cat:'Warna',desc:'Suhu dan tint',params:[P('temp','Suhu',-100,100,0),P('tint','Tint',-100,100,0)]},
 {id:'colorhot',name:'Color Hot',cat:'Warna',desc:'Hangatkan highlight',params:[P('amount','Kekuatan',0,100,50)]},
 {id:'colortemperature',name:'Color Temperature',cat:'Warna',desc:'Hangat dingin foto',params:[P('amount','Jumlah',-100,100,0)]},
+{id:'colorize',name:'Colorize',cat:'Warna',desc:'Ubah hue, jaga luminance',params:[P('tint','Tint',0,360,0)]},
+{id:'colorhot',name:'Color Hot',cat:'Warna',desc:'Panas warna (penuh di GPU)',params:[P('color','Warna',-180,180,0),P('tint','Tint',-180,180,60)]},
 {id:'threshold',name:'Threshold',cat:'Gaya',desc:'Ambang hitam putih',params:[P('level','Ambang',0,255,128)]},
 {id:'poster',name:'Posterize',cat:'Gaya',desc:'Kurangi level warna',params:[P('levels','Level',2,12,4)]},
 {id:'findedges',name:'Find Edges',cat:'Gaya',desc:'Sobel 3x3',params:[P('amount','Kekuatan',0,100,80)]},
@@ -76,6 +78,10 @@ export const FX_CATALOG = [
 {id:'move-along-path3',name:'Move Along Path 3',cat:'Gerak',desc:'Ikuti path (parsial: offset)',params:[P('progress','Progres',0,1,0),P('angle','Sudut',-180,180,0),P('tangent','Tangen',0,1,1),P('inset','Inset',0,100,0),P('offset','Offset',-1000,1000,0)]},
 {id:'grow-parts',name:'Grow Parts',cat:'Gerak',desc:'Tumbuh (script eksternal AM tak tersedia)',params:[P('amount','Jumlah',0,100,50)]},
 {id:'shake-parts',name:'Shake Parts',cat:'Gerak',desc:'Goyang magnitude+evolution',params:[P('mag','Mag',0,2000,10),P('evolution','Evolusi',0,2000,0)]},
+{id:'counter',name:'Counter',cat:'Teks',desc:'Animasi angka',params:[P('scale','Skala',-100,100,1),P('offset','Offset',-1e9,1e9,0)]},
+{id:'textprogress',name:'Typewriter',cat:'Teks',desc:'Ketik per karakter',params:[P('start','Mulai',0,1,0),P('end','Akhir',0,1,1),P('cursor','Kursor',0,8,0),P('blink','Kedip',0,1,0)]},
+{id:'text-spacing',name:'Text Spacing',cat:'Teks',desc:'Spasi huruf/baris',params:[P('letterspacing','Spasi huruf',0,2,0),P('linespacing','Spasi baris',0.5,3,1)]},
+{id:'textrand',name:'Text Random',cat:'Teks',desc:'Acak karakter',params:[P('amount','Jumlah',0,1,0),P('evo','Evolusi',0,100,0),P('seed','Seed',0,100,0),P('start','Mulai',0,1,0),P('end','Akhir',0,1,1),P('charset','Set',0,3,0),P('preserveSpace','Jaga spasi',0,1,1)]},
 ];
 
 const byId={}; FX_CATALOG.forEach(f=>byId[f.id]=f);
@@ -247,6 +253,27 @@ function applyOne(src,id,p,T,fx,layer){
       for(let i=0;i<o.length;i+=4){ const n=rnd()*a; o[i]+=n; o[i+1]+=n; o[i+2]+=n }
       c.putImageData(tmp,0,0); return out;
     }
+    case 'colorize': {
+      // Putar hue sebesar tint (derajat), jaga luminance (aproksimasi CPU;
+      // presisi penuh di GPU). Tanpa tint -> identitas (aman).
+      const deg=((p.tint??0)%360+360)%360;
+      if(deg<0.5&&deg>-0.5){ c.drawImage(src,0,0); return out }
+      const rad=deg*Math.PI/180, cos=Math.cos(rad), sin=Math.sin(rad);
+      const tmp=prep(w,h); tmp.drawImage(src,0,0);
+      const d=tmp.getImageData(0,0,w,h), o=d.data;
+      for(let i=0;i<o.length;i+=4){
+        const r=o[i]/255,g=o[i+1]/255,b=o[i+2]/255;
+        const y=0.299*r+0.587*g+0.114*b, u=-0.14713*r-0.28886*g+0.436*b, v=0.615*r-0.51499*g-0.10001*b;
+        const u2=u*cos+v*sin, v2=-u*sin+v*cos;
+        o[i]=Math.max(0,Math.min(255,(y+1.13983*v2)*255)); o[i+1]=Math.max(0,Math.min(255,(y-0.39465*u2-0.58060*v2)*255)); o[i+2]=Math.max(0,Math.min(255,(y+2.03211*u2)*255));
+      }
+      tmp.putImageData(d,0,0); c.drawImage(_c1,0,0); return out;
+    }
+    case 'colorhot': {
+      // Triplet bias hue-disc hanya dimengerti shader asli (GPU).
+      // CPU: passthrough terdokumentasi (bukan fallback exposure yg merusak).
+      c.drawImage(src,0,0); return out;
+    }
     case 'hue': case 'gamma': {
       if(id==='gamma'){ const g=Math.max(0.01,p.amount??1); const tmp=prep(w,h); tmp.drawImage(src,0,0); const d=tmp.getImageData(0,0,w,h),o=d.data; for(let i=0;i<o.length;i+=4){ o[i]=255*Math.pow(o[i]/255,1/g); o[i+1]=255*Math.pow(o[i+1]/255,1/g); o[i+2]=255*Math.pow(o[i+2]/255,1/g) } tmp.putImageData(d,0,0); c.drawImage(_c1,0,0); return out }
       const deg=((p.amount??0)%360+360)%360, rad=deg*Math.PI/180;
@@ -261,7 +288,7 @@ function applyOne(src,id,p,T,fx,layer){
       }
       tmp.putImageData(d,0,0); c.drawImage(_c1,0,0); return out;
     }
-    case 'gaussianblur': case 'boxblur': { const r=Math.max(0,p.radius??8); if(r<0.3){c.drawImage(src,0,0);return out} putFiltered('blur('+r+'px)'); return out }
+    case 'gaussianblur': case 'boxblur': { const st=p.strength; const r=st!==undefined?Math.max(0,st*8):Math.max(0,p.radius??8); if(r<0.3){c.drawImage(src,0,0);return out} putFiltered('blur('+r+'px)'); return out }
 
     case 'colortune2': case 'colortemperature': case 'colorhot': {
       const t=((p.temp??p.amount??0)/100)*30;
