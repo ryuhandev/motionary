@@ -1,5 +1,6 @@
 node_modules/
 *.apks
+*.zip
 *.log
 .env
 .DS_Store
