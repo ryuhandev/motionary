@@ -1,0 +1,98 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.radialrays" name="@am:string/effect_radialrays_name" desc="@am:string/effect_radialrays_desc" category="procedural" tags="procedural,retro,pop,raster" thumb="thumb/radialrays.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="position" label="@am:string/effect_param_position" />
+        <slider id="pointCount" default="5" min="3" max="32" label="@am:string/effect_param_count" step="1" type="integer" ticks="3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32" />
+        <spinner id="rayWidth" default="0.5" min="0.0" max="1." label="@am:string/effect_param_width" step="0.001"/>
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+
+        <section text="@am:string/effect_section_colorblend" />
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+        <selector id="blendMode" style="dropdown" default="0" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+
+        <section text="@am:string/effect_param_radius" />
+        <spinner id="innerRadius" default="0." min="0.0" max="1." label="@am:string/effect_param_radius_in" step="0.005" ticks="0., 0.5, 1." />
+        <spinner id="outerRadius" default="1." min="0.0" max="1." label="@am:string/effect_param_radius_out" step="0.005" ticks="0., 0.5, 1." />
+
+        <section text="@am:string/effect_param_feather" />
+        <spinner id="feather" default="1." min="1.0" max="500." label="@am:string/effect_param_angular" step="1."/>
+        <spinner id="radialFeather" default="1." min="1.0" max="500." label="@am:string/effect_param_radial" step="1."/>
+
+        <section text="@am:string/effect_section_wiggle" />
+        <spinner id="bendStrength" default="0.0" min="0.0" max="10." label="@am:string/effect_param_magnitude" step="0.001"/>
+        <spinner id="bendFrequency" default="50.0" min="0.0" max="200." label="@am:string/effect_param_freq" step="0.1"/>
+        <spinner id="bendPhase" default="0.0" min="0.0" max="2000." label="@am:string/effect_param_phase" step="0.1"/>
+
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        #define PI 3.1415926536
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        float rays(vec2 st, float pixelSize, float feather, float width, float count, float innerRadius, float outerRadius, float radialFeather, float bendStrength, float bendFrequency, float bendPhase, float angle) {
+            float r = length(st);
+            float theta = (atan(st.x,st.y)+angle)/(2.0*PI);
+            theta += sin(r*bendFrequency+bendPhase)*bendStrength;
+            float sweep = 1./count;
+            float t = mod(theta,sweep)/sweep;
+            float h = feather/2. * pixelSize/r;
+            float halfWidth = width/2.;
+            float low = smoothstep(0.5-halfWidth-h,0.5-halfWidth+h,t);
+            float high = smoothstep(0.5+halfWidth+h,0.5+halfWidth-h,t);
+            float rf = radialFeather/2. * pixelSize;
+            //float rt0 = abs(t-0.5)/halfWidth;
+            //float rt1 = 1.-clamp((outerRadius-r)/halfWidth,0.,1.);
+            //float rt = rt0*rt1;
+            float orad = outerRadius; //-((cos(rt))*rounding);
+            float ir = innerRadius;
+            float inside = smoothstep(ir-rf, ir+rf, r);
+            float outside = smoothstep(orad+rf, orad-rf, r);
+
+            //float insideRound = smoothstep(ir-rounding, ir+rounding, r);
+            //float outsideRound = smoothstep(or+rounding, or-rounding, r);
+            //float lowRound = smoothstep(0.5-halfWidth-rounding,0.5-halfWidth+rounding,t);
+            //float highRound = smoothstep(0.5+halfWidth+rounding,0.5+halfWidth-rounding,t);
+            //
+            //float roundLimit = smoothstep(0.5,0.501,insideRound * outsideRound * lowRound * highRound);
+
+            return low*high*inside*outside;
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm;
+            st.y = 1. - st.y;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            float pixelSize = 1./length(getTexSize(inputImg.size));
+
+            float p = rays(st-position/1000.0, pixelSize, feather, rayWidth, pointCount, innerRadius, outerRadius, radialFeather, bendStrength/10., bendFrequency, bendPhase, angle/57.2958);
+
+            vec4 adjColor = color * p;
+
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*adjColor.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-adjColor.rgb)),1.0) * texColor.a;
+            } else {
+                result = adjColor*texColor.a;
+                result = texColor*(1.-result.a) + result;
+            }
+            gl_FragColor = mix(texColor,result,alpha);
+        }
+
+    ]]></shader>
+
+</effect>

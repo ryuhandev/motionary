@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.blink" name="@am:string/effect_blink_name" desc="@am:string/effect_blink_desc" category="opacity" thumb="thumb/blink.webp" tags="opacity, visibility, auto, propadjust" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Blink</string>-->
+            <!--<string name="desc">Blinks the element on and off</string>-->
+            <!--<string name="freq">Frequency</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="freq" default="2.0" min="0.1" max="16.0" label="@am:string/effect_param_freq" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            if( (env.time * env.duration * p.freq) % 1.0 > 0.5 )
+                el.alpha = 0.0
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.fillbehind"
+    name="@am:string/effect_fill_behind_name"
+    desc="@am:string/effect_fill_behind_desc"
+    category="other"
+    tags="compositing,raster,blur"
+    thumb="thumb/glowscan.webp"
+    experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="blurBuf" srcType="buffer" />
+        <spinner id="strength" default="0.3" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_strength" />
+        <spinner id="feather" default="0.05" min="0.0" max="1." step="0.001" label="@am:string/effect_param_feather" />
+        <spinner id="saturation" default="0.0" min="-1.0" max="1.0" label="@am:string/effect_param_saturation" snap="0.0" ticks="0.0" step="0.005" type="relative-percent" />
+        <spinner id="brightness" default="0.0" min="-1.0" max="1.0" label="@am:string/effect_param_brightness" ticks="0.0" snap="0.0" step="0.01" type="relative-percent" />
+        <spinner id="gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" />
+        <spinner id="alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_bg_alpha" type="percent" />
+        <spinner id="fgAlpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_fg_alpha" type="percent" />
+        <color id="tintColor" default="#FFFF5566" label="@am:string/effect_param_tintColor" alpha="false" />
+        <spinner id="tintStrength" default="0." min="0.0" max="1" step="0.001" label="@am:string/effect_param_tint" type="percent" />
+        <color id="edgeColor" default="#FF000000" label="@am:string/effect_param_edge_color" alpha="false" />
+        <spinner id="edgeStrength" default="0." min="0.0" max="1" step="0.001" label="@am:string/effect_param_edge_strength" type="percent" />
+        <spinner id="scanLines" default="0." min="0.0" max="1" step="0.001" label="@am:string/effect_param_scan_line_strength" type="percent" />
+        <spinner id="scanLineCount" default="720" min="100" max="2160" step="1" label="@am:string/effect_param_scan_line_count" />
+        <point id="fgOffset" label="@am:string/effect_param_fg_offset" />
+        <spinner id="fgScale" default="1.0" min="0.01" max="100.0" step="0.01" label="@am:string/effect_param_fg_scale" />
+        <point id="bgOffset" label="@am:string/effect_param_bg_offset" />
+        <spinner id="bgScale" default="1.0" min="0.01" max="100.0" step="0.01" label="@am:string/effect_param_bg_scale" />
+    </params>
+
+    <passes>
+        <pass target="blurBuf" effect="com.alightcreative.effects.gaussianblur"/>
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+        
+        vec4 composite( vec4 a, vec4 b) {
+            return a * (1. - b.a) + b;
+        }
+        
+        highp mat3 rgb2yuv = mat3(
+             0.299,     0.587,    0.114,
+            -0.14713,  -0.28886,  0.436,
+             0.615,    -0.51499, -0.10001
+        );
+        highp mat3 yuv2rgb = mat3(
+            1.0,  0.0,      1.13983,
+            1.0, -0.39465, -0.58060,
+            1.0,  2.03211,  0.0
+        );
+        
+        float maxComponent( vec2 v ) {
+            return max(v.x,v.y);
+        }
+
+        void main() {
+        
+            float l2sScale = length(vec4(1.,0.,0.,0.) * acLayerToScreen);
+            //vec2 stretchToScreen = acScreenSize/acLayerSize * (1. + strength) / l2sScale;
+            //stretchToScreen = normalize((vec4(1., 1.,0.,0.)*acLayerToScreen).xy)/l2sScale;
+            vec2 stretchToScreenA = (1.+strength) / (abs(vec4(1., 1.,0.,0.)*acLayerToScreen).xy);
+            vec2 stretchToScreenB = (1.+strength) / (abs(vec4(-1., -1.,0.,0.)*acLayerToScreen).xy);
+            vec2 stretchToScreenC = (1.+strength) / (abs(vec4(1., -1.,0.,0.)*acLayerToScreen).xy);
+            vec2 stretchToScreenD = (1.+strength) / (abs(vec4(-1., 1.,0.,0.)*acLayerToScreen).xy);
+            float fillScreenScale = max(max(maxComponent(stretchToScreenA),maxComponent(stretchToScreenB)), max(maxComponent(stretchToScreenC),maxComponent(stretchToScreenD)));
+            
+            vec2 stFG = (acScreenNorm - 0.5) / fgScale + 0.5 - fgOffset/500.*vec2(1.,-1.);
+            vec2 stBG = (acScreenNorm - 0.5) / bgScale + 0.5 - bgOffset/500.*vec2(1.,-1.);
+
+            float insideFG = step(0.,stFG.x) * step(stFG.x,1.) * step(0.,stFG.y) * step(stFG.y,1.);
+            
+            vec4 texColor = texture2DCv(inputImg.texture,stFG) * insideFG;
+            float blurAlpha = texture2DCv(blurBuf.texture,stFG).a;
+            vec4 blurTexColor = texture2DCv(blurBuf.texture,(stBG-0.5)/fillScreenScale + acLayerCenterNorm);
+            
+            vec3 tintYuv = tintColor.rgb * rgb2yuv;
+            
+            vec3 rgb = blurTexColor.rgb / blurTexColor.a;
+            vec3 yuv = rgb * rgb2yuv;
+            yuv.yz = yuv.yz * (saturation+1.0);
+            yuv.yz = mix(yuv.yz,tintYuv.yz,tintStrength);
+            rgb = yuv * yuv2rgb;
+            rgb = clamp(pow(rgb,vec3(1.0/gamma)) + vec3(brightness),0.,1.);
+            vec4 adjBlurColor = vec4(rgb,1.) * blurTexColor.a;
+            
+            adjBlurColor.rgb *= 1. - (scanLines * cos(acScreenNorm.y*scanLineCount));
+            
+            float fa = feather < 0.0005 ? 1.0 : smoothstep(0.4999,0.5+min(0.999,feather/strength)*0.5,blurAlpha);
+            
+            
+            gl_FragColor = composite(adjBlurColor*alpha,composite(edgeColor*blurAlpha*2.*edgeStrength,texColor*fa)*fgAlpha);
+        
+        }
+
+    ]]></shader>
+
+</effect>
+

@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.streaks" name="@am:string/effect_linearstreaks_name" desc="@am:string/effect_linearstreaks_desc" category="blur" tags="blur, raster" thumb="thumb/linear-streaks.webp" overdraw="true" max-overdraw="0.1" experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="strength" default="0.15" min="0.0" max="1.0" label="@am:string/effect_param_strength" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <spinner id="alpha" label="@am:string/effect_param_alpha" default="1.0" min="0.0" max="1.0" type="percent" />
+        <spinner id="bias" label="@am:string/effect_param_bias" default="0.0" min="-1.0" max="1.0" type="percent" ticks="0" snap="0" />
+
+        <selector id="rmode" default="1" style="radio" label="R" >
+            <choice label="@am:string/effect_param_minimum_4char_abbreviation" value="0" />
+            <choice label="@am:string/effect_param_maximum_4char_abbreviation" value="1" />
+            <choice label="@am:string/effect_param_average_4char_abbreviation" value="3" />
+            <choice label="@am:string/effect_param_off_4char_abbreviation" value="2" />
+        </selector>
+        <selector id="gmode" default="1" style="radio" label="G" >
+            <choice label="@am:string/effect_param_minimum_4char_abbreviation" value="0" />
+            <choice label="@am:string/effect_param_maximum_4char_abbreviation" value="1" />
+            <choice label="@am:string/effect_param_average_4char_abbreviation" value="3" />
+            <choice label="@am:string/effect_param_off_4char_abbreviation" value="2" />
+        </selector>
+        <selector id="bmode" default="1" style="radio" label="B" >
+            <choice label="@am:string/effect_param_minimum_4char_abbreviation" value="0" />
+            <choice label="@am:string/effect_param_maximum_4char_abbreviation" value="1" />
+            <choice label="@am:string/effect_param_average_4char_abbreviation" value="3" />
+            <choice label="@am:string/effect_param_off_4char_abbreviation" value="2" />
+        </selector>
+        <selector id="amode" default="1" style="radio" label="A" >
+            <choice label="@am:string/effect_param_minimum_4char_abbreviation" value="0" />
+            <choice label="@am:string/effect_param_maximum_4char_abbreviation" value="1" />
+            <choice label="@am:string/effect_param_average_4char_abbreviation" value="3" />
+            <choice label="@am:string/effect_param_off_4char_abbreviation" value="2" />
+        </selector>
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            vec2 texelSize = 1.0 / getTexSize(inputImg.size);
+            float rad = angle * 0.0174533;
+            vec2 velocity = vec2(cos(rad)*strength,-sin(rad)*strength);
+            //velocity *= acPreviewSize/getTexSize(inputImg.size);
+            velocity.x *= acScreenSize.y / acScreenSize.x;
+            float speed = length(velocity / texelSize);
+            int nSamples = int(clamp(speed, 1.01, 100.01));
+            vec4 originalColor = texture2DCv(inputImg.texture,acScreenNorm.st);
+            vec4 outColor = originalColor;
+            outColor.rgb = outColor.a > 0.0 ? outColor.rgb/outColor.a : outColor.rgb;
+            for(int i=1; i<nSamples; i++ ) {
+                vec2 offset = velocity * (float(i) / float(nSamples - 1) - (0.5+bias/2.0));
+                vec2 sampleCoord = acScreenNorm.st-offset;
+                float insideTexture = step(0.0,sampleCoord.x) * step(sampleCoord.x,1.0) * step(0.0,sampleCoord.y) * step(sampleCoord.y,1.0);
+                vec4 c = texture2DCv(inputImg.texture, sampleCoord) * insideTexture;
+                float r;
+                float g;
+                float b;
+                float a;
+                if( rmode == 0 ) {
+                    r = min(outColor.r,c.r);
+                } else if( rmode == 1 ) {
+                    r = max(outColor.r,c.r);
+                } else if( rmode == 3 ) {
+                    r = outColor.r + c.r;
+                } else {
+                    r = outColor.r;
+                }
+                if( gmode == 0 ) {
+                    g = min(outColor.g,c.g);
+                } else if( gmode == 1 ) {
+                    g = max(outColor.g,c.g);
+                } else if( gmode == 3 ) {
+                    g = outColor.g + c.g;
+                } else {
+                    g = outColor.g;
+                }
+                if( bmode == 0 ) {
+                    b = min(outColor.b,c.b);
+                } else if( bmode == 1 ) {
+                    b = max(outColor.b,c.b);
+                } else if( bmode == 3 ) {
+                    b = outColor.b + c.b;
+                } else {
+                    b = outColor.b;
+                }
+                if( amode == 0 ) {
+                    a = min(outColor.a,c.a);
+                } else if( amode == 1 ) {
+                    a = max(outColor.a,c.a);
+                } else if( amode == 3 ) {
+                    a = outColor.a + c.a;
+                } else {
+                    a = outColor.a;
+                }
+                outColor = vec4(r,g,b,a);
+            }
+            outColor = outColor / vec4(
+                rmode == 3 ? float(nSamples) : 1.0,
+                gmode == 3 ? float(nSamples) : 1.0,
+                bmode == 3 ? float(nSamples) : 1.0,
+                amode == 3 ? float(nSamples) : 1.0
+            );
+            outColor.rgb *= outColor.a;
+            gl_FragColor = mix(originalColor,outColor,alpha);
+        }
+
+    ]]></shader>
+
+</effect>

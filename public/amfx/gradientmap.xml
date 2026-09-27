@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.gradientmap" name="@am:string/effect_gradientmap_name" desc="@am:string/effect_gradientmap_desc" category="color" thumb="thumb/gradientmap.webp" tags="color,gradient,lumaMap,raster,membersOnly" deprecated="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="color1" default="#FFEE5533" label="@am:string/effect_param_color1" alpha="true" />
+        <color id="color2" default="#FFFFEE88" label="@am:string/effect_param_color2" alpha="true" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float luminance = dot(texColor.rgb, luminanceWeighting);
+            gl_FragColor = mix(color1,color2,luminance)*texColor.a;
+        }
+
+    ]]></shader>
+
+</effect>

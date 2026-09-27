@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.tile" name="@am:string/effect_tiles_name" desc="@am:string/effect_tiles_desc" category="distort" tags="distort,geometric,essentials,raster" thumb="thumb/tiles.webp" overdraw="true" max-overdraw="0.5" >
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Tiles</string>-->
+            <!--<string name="desc">Repeats the contents of the layer, filing the screen. Alternate rows of tiles can be offset for a brick-like effect, and tiles can be mirrored.</string>-->
+            <!--<string name="crop">Crop</string>-->
+            <!--<string name="angle">Angle</string>-->
+            <!--<string name="offset">Offset</string>-->
+            <!--<string name="mirror">Mirror</string>-->
+            <!--<string name="vertoffs">Offset Vertically</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="scale" default="1.0" min="0.005" max="20.0" label="@am:string/effect_param_crop" ticks="1.0" snap="1.0" step="0.005" />
+        <spinner id="phase" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_offset" ticks="0.0" snap="0.0" step="0.005" />
+        <switch id="mirror" default="false" label="@am:string/effect_param_mirror" />
+        <switch id="vertoffs" default="false" label="@am:string/effect_param_vertoffs" />
+        <spinner id="angle" default="0.0" min="-1800.0" max="1800.0" label="@am:string/effect_param_angle" ticks="-90,-45,0,45,90" snap="-90,-45,0,45,90" type="angle" step="0.5" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            vec2 pixelSize = 1.0/getTexSize(inputImg.size);
+            vec2 tiledCoord = acLayerNorm;
+            if( vertoffs ) {
+                tiledCoord.y += step(1., mod(tiledCoord.x,2.0)) * phase;
+            } else {
+                tiledCoord.x += step(1., mod(tiledCoord.y,2.0)) * phase;
+            }
+            if(mirror) {
+                tiledCoord = abs(mod(tiledCoord-vec2(1.0,1.0),vec2(2.0,2.0))-vec2(1.0,1.0));
+            } else {
+                tiledCoord = mod(tiledCoord,vec2(1.0,1.0));
+            }
+            float a = angle * 0.0174533;
+            mat2 rot = mat2(
+                cos(a), -sin(a),
+                sin(a), cos(a)
+            );
+            vec2 scaledCoord = tiledCoord;
+            scaledCoord -= vec2(0.5,0.5);
+            scaledCoord *= vec2(1.0)/(scale+pixelSize*4.0);
+            scaledCoord.x *= acLayerSize.x / acLayerSize.y;
+            scaledCoord *= rot;
+            scaledCoord.x *= acLayerSize.y / acLayerSize.x;
+            scaledCoord += vec2(0.5,0.5);
+
+            gl_FragColor = texture2DCv(inputImg.texture,(vec4(scaledCoord,0.0,1.0)*acLayerToScreen).xy);
+        }
+
+    ]]></shader>
+
+</effect>

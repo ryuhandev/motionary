@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.drawing.strokecolor" name="@am:string/effect_strokecolor_name" desc="@am:string/effect_strokecolor_desc" affinity="stroke!" category="drawing" tags="drawing,stroke,color,vector,pop" thumb="thumb/strokecolor2.webp">
+
+    <params>
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="false" />
+    </params>
+
+</effect>

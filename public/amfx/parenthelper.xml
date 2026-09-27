@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.parenthelper" name="@am:string/effect_parenthelper_name" desc="@am:string/effect_parenthelper_desc" tags="transform,propAdjust,utility,parenting" thumb="thumb/pulsate.webp">
+
+    <params>
+        
+        <tip text="@am:string/effect_parenthelper_tip" />
+
+        <selector id="scaleMode" default="0" style="radio" label="@am:string/effect_param_scale" >
+            <choice label="Normal" value="0" />
+            <choice label="Locked" value="1" />
+            <choice label="Weighted" value="2" enableTargets="scaleWeight" />
+        </selector>
+        <selector id="rotateMode" default="0" style="radio" label="@am:string/effect_param_rotation" >
+            <choice label="Normal" value="0" />
+            <choice label="Locked" value="1" />
+            <choice label="Weighted" value="2" enableTargets="rotateWeight" />
+        </selector>
+
+        <spinner id="scaleWeight" default="1.0" min="-1000.0" max="1000.0" step="0.001" label="@am:string/effect_param_scale_weight" type="percent" ticks="0.5,1.0,1.5,2.0" enabled="false" />
+        <spinner id="rotateWeight" default="1.0" min="-1000.0" max="1000.0" step="0.01" label="@am:string/effect_param_rotation_weight" type="percent" ticks="0.5,1.0,1.5,2.0" enabled="false" />
+
+        <selector id="autoRotate" default="0" style="radio" label="@am:string/effect_param_auto_rotate_abbr" >
+            <choice label="@am:string/effect_param_off" value="0" />
+            <choice label="@am:string/effect_param_x_axis" value="1" enableTargets="radiusAdjust" />
+            <choice label="@am:string/effect_param_y_axis" value="2" enableTargets="radiusAdjust" />
+        </selector>
+        <spinner id="radiusAdjust" default="0.0" min="-1000.0" max="1000.0" step="0.1" label="@am:string/effect_param_radius_adjust" ticks="0" enabled="false" />
+
+    </params>
+
+</effect>

@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.checker" name="@am:string/effect_checker_name" desc="@am:string/effect_checker_desc" tags="pattern,procedural,block,raster" category="procedural" thumb="thumb/checker.png" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="position" label="@am:string/effect_param_offset" />
+        <spinner id="amount" default="10.0" min="0.5" max="200.0" label="@am:string/effect_param_count" step="0.1" ticks="10" />
+        <spinner id="stretch" default="1.0" min="0.01" max="10.0" label="@am:string/effect_param_stretch" step="0.01" ticks="1" />
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="false" />
+        <switch id="punchout" default="false" label="@am:string/effect_param_punchout" />
+        <!--<slider id="smoothing" default="0.01" min="0.0" max="1.0" label="@am:string/effect_param_smoothing" />-->
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st;
+            if(screenSpace) {
+                st = acScreenNorm;
+                st.y = 1.0  - st.y;
+                st -= 0.5;
+                st.x *= acScreenSize.x/acScreenSize.y;
+                st -= (position/1200.0);
+            } else {
+                st = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/length(acLayerSize)-(position/1200.0);
+            }
+            
+            //st.y *= stretch;
+            float a = angle * 0.0174533;
+            st *= mat2(
+                sin(a), -cos(a),
+                cos(a), sin(a)
+            );
+            float px = floor(st.x*amount);
+            float py = floor(st.y*amount/stretch);
+            float p = step(mod(px+py,2.0),0.5);
+            //p = smoothstep(0.5+smoothing/2.0,0.5,p)*smoothstep(0.0,smoothing/0.2,p);
+            vec4 c = color * p;
+            if( punchout ) {
+                gl_FragColor = texColor * (1.0-p);
+            } else {
+                c *= texColor.a;
+                gl_FragColor = c + (texColor*(1.0-c.a));
+            }
+        }
+
+    ]]></shader>
+
+</effect>

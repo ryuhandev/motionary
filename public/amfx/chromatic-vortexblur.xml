@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.chromaticvortexblur" name="@am:string/effect_chromatic_vortexblur_name" desc="@am:string/effect_chromatic_vortexblur_desc" category="blur" tags="distort,fun,blur" thumb="thumb/chromatic-vortexblur.webp" experimental="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Swirl</string>-->
+            <!--<string name="desc">A vortex-like deformation. Strength, radius, and center can be adjusted.</string>-->
+            <!--<string name="center">Center</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="strength" default="0.1" min="-0.5" max="0.5" label="@am:string/effect_param_strength" step="0.001" />
+        <spinner id="radius" default="0.3" min="0.0" max="0.8" label="@am:string/effect_param_radius" step="0.01" />
+        <spinner id="colorAberration" default="0.15" min="-1.0" max="1.0" step="0.01" label="@am:string/effect_param_color_aberration" ticks="0" />
+        <selector id="centerChannel" default="1" style="radio" label="@am:string/effect_param_center" >
+            <choice label="R" value="0" />
+            <choice label="G" value="1" />
+            <choice label="B" value="2" />
+        </selector>
+        <selector id="mode" default="2" style="radio" label="@am:string/effect_param_mode" >
+            <choice label="@am:string/effect_param_mode_light" value="2" />
+            <choice label="@am:string/effect_param_mode_dark" value="3" />
+            <choice label="@am:string/effect_param_mode_mask" value="0" />
+            <choice label="@am:string/effect_param_mode_luma" value="1" />
+        </selector>
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+      
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+      
+        vec4 getBlurred(float channelStrength) {
+          vec2 texelSize = 1.0 / getTexSize(inputImg.size);
+          float Radius = radius;
+          float T = channelStrength;
+
+          vec2 UV = acScreenNorm;
+
+          vec2 CENTER = centerPoint*vec2(-1,-1);
+
+          vec2 diff1 = acLayerCenter-CENTER;
+          diff1.y = acScreenSize.y - diff1.y;
+          vec2 diff = diff1 /acScreenSize;
+
+          UV -= diff;
+          vec2 convRate = vec2(1,1);
+          if(acScreenSize.y > acScreenSize.x)
+              convRate.y=(acScreenSize.y/acScreenSize.x);
+          else
+              convRate.x=(acScreenSize.x/acScreenSize.y);
+          UV *= convRate;
+
+          float Dist = length(UV);
+
+          vec4 color = vec4(0.0);
+          
+          if ( Dist < Radius )
+          {
+              float speed = 0.0;
+              float localPower = (Radius - Dist) / Radius;
+              {
+                float A = ( T <= 0.5 ) ? mix( 0.0, 1.0, T/0.5 ) : mix( 1.0, 0.0, (T-0.5)/0.5 );
+                float Theta = localPower * localPower * A * 8.0 * 3.14159;
+                float l = Dist * Theta;
+                speed = abs(l/texelSize.x*10.0);
+              }
+              float nSamples = float(clamp(speed, 1.01, 2000.01));
+              
+              vec2 v = UV/nSamples;
+              vec2 c = vec2(0.0);
+              float count = 0.0;
+              for(float d = max(Radius - abs(strength)*localPower, Dist); d <= Radius; d += 1.0/nSamples) {
+                  float Percent = (Radius - d) / Radius;
+                  vec2 cc = UV - c;
+                  c += v;
+                  float A = ( T <= 0.5 ) ? mix( 0.0, 1.0, T/0.5 ) : mix( 1.0, 0.0, (T-0.5)/0.5 );
+                  float Theta = Percent * Percent * A * 8.0 * 3.14159;
+                  float S = sin( Theta );
+                  float C = cos( Theta );
+                  vec2 res = vec2( dot(cc, vec2(C, -S)), dot(cc, vec2(S, C)) );
+                  res /= convRate;
+                  res += diff;
+                  color += texture2DCv(inputImg.texture, res);
+                  count += 1.0;
+              }
+              color /= count;
+          }
+          else {
+              UV /= convRate;
+              UV += diff;
+              color = texture2DCv(inputImg.texture, UV);
+          }
+          return color;
+        }
+
+        void main() {
+          
+          vec3 offset = vec3(0.0);
+          if( centerChannel==0 ) {
+              offset = vec3(0.0, -1.0, 1.0);
+          } else if( centerChannel==1 ) {
+              offset = vec3(-1.0, 0.0, 1.0);
+          } else {
+              offset = vec3(-1.0, 1.0, 0.0);
+          }
+          offset *= colorAberration;
+          vec4 redBlurred = getBlurred((1.0+offset.r)*strength);
+          vec4 greenBlurred = getBlurred((1.0+offset.g)*strength);
+          vec4 blueBlurred = getBlurred((1.0+offset.b)*strength);
+          vec4 outColor = vec4(redBlurred.r,
+                              greenBlurred.g,
+                              blueBlurred.b,
+                              (redBlurred.a+greenBlurred.a+blueBlurred.a)/3.0);
+          vec4 colorMid, colorLow, colorHigh;
+          if( centerChannel==0 ) {
+              colorMid = redBlurred;
+              colorLow = greenBlurred;
+              colorHigh = blueBlurred;
+          } else if( centerChannel==1 ) {
+              colorMid = greenBlurred;
+              colorLow = redBlurred;
+              colorHigh = blueBlurred;
+          } else {
+              colorMid = blueBlurred;
+              colorLow = redBlurred;
+              colorHigh = greenBlurred;
+              offset = vec3(-1.0, 1.0, 0.0);
+          }
+          if( mode==0 ) {
+              gl_FragColor = outColor * colorMid.a;
+          } else if( mode==1 ) {
+              vec4 r = vec4(outColor.r, 0.0, 0.0, outColor.r);
+              vec4 g = vec4(0.0, outColor.g, 0.0, outColor.g);
+              vec4 b = vec4(0.0, 0.0, outColor.b, outColor.b);
+              vec4 m = (r + g + b) / 3.;
+              vec4 c = vec4(0.0,0.0,0.0,0.0);
+              vec4 l = vec4(dot(luminanceWeighting * colorMid.rgb, vec3(1.0)));
+              c = m + (c*(1.0-m.a));
+              c = l + (c*(1.0-l.a));
+              gl_FragColor = c;
+          } else if( mode==2 ) {
+              gl_FragColor = vec4(outColor.rgb,colorMid.a);
+          } else {
+              gl_FragColor = outColor*((colorLow.a + colorMid.a + colorHigh.a)/3.);
+          }
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.hexshift" name="@am:string/effect_hexshift_name" desc="@am:string/effect_hexshift_desc" category="distort" tags="distort,geometric,raster" thumb="thumb/hexarray.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="strength" default="0.1" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_strength" />
+        <point id="position" label="@am:string/effect_param_offset" />
+        <spinner id="size" default="10.0" min="0.5" max="200.0" label="@am:string/effect_param_size" step="0.1" ticks="10" />
+        <point id="stretch" min="0.01,0.01" max="10, 10" default="1.0, 1.0" step="0.01" label="@am:string/effect_param_stretch" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+        <switch id="maskToLayer" label="@am:string/effect_param_masktolayer" default="false" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const float PI = 3.14159;
+        const float ulp = PI/240.;
+
+        const vec2 hexRatio = vec2(1.0, 1.73);
+        const vec2 hexRatioNorm = normalize(hexRatio);
+
+        float hexDist(vec2 p) {
+            return max(dot(abs(p), hexRatioNorm), abs(p.x));
+        }
+
+        void hexTile(vec2 st, out vec2 uv, out vec2 huv, out vec2 id) {
+            vec2 grid = mod(st, hexRatio)-hexRatio/2.;
+            vec2 offsetGrid = mod(st-hexRatio/2., hexRatio)-hexRatio/2.;
+            uv = length(grid) < length(offsetGrid) ? grid : offsetGrid;
+            huv = vec2(atan(uv.x, uv.y), (.5-hexDist(uv))*2.);
+            id = vec2(st.x-uv.x, st.y-uv.y);
+        }
+
+        mat2 rot(float a) {
+            float c = cos(a);
+            float s = sin(a);
+            return mat2(
+                c, -s,
+                s, c
+            );
+        }
+
+        vec2 l2s( vec2 v, mat4 acLTS ) {
+            return (vec4(v,0.,1.)*acLTS).xy;
+        }
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st;
+            if(screenSpace) {
+                st = acScreenNorm;
+                st -= 0.5;
+                st.x *= acScreenSize.x/acScreenSize.y;
+            } else {
+                st = acLayerNorm;
+                st -= 0.5;
+                st.x *= acLayerSize.x/acLayerSize.y;
+            }
+            
+            vec2 scale = vec2(size/100. * stretch.x, size/100. * stretch.y);
+            vec2 pos = (position/500.) * vec2(1., -1.);
+
+            st /= scale;
+
+            st *= rot(angle * 0.0174533);
+
+            pos *= rot(-angle * 0.0174533);
+
+            vec2 modPos = mod(pos,hexRatio*2.);
+            vec2 basePos = pos - modPos;
+            vec2 stepPos = basePos;// hexRatio;
+            st -= modPos;
+
+            vec2 uv;
+            vec2 huv;
+            vec2 id;
+            hexTile(st,uv,huv,id);
+
+            id -= stepPos;// * vec2(1.,-1.);
+            id += 1000.;
+
+            float px = id.x;
+            float py = id.y;
+            float dx = rand(vec2(px,py+3937.7249*(seed+0.01)));
+            float dy = rand(vec2(px+328.7319+432.7249*(seed+0.01),py-971.382));
+            vec2 dv = (vec2(dx,dy) - 0.5)*2.0;
+            dv.x *= acScreenSize.x/acScreenSize.y;
+
+            vec2 sampCoord = acScreenNorm+dv*strength;
+            sampCoord = abs(mod(sampCoord-1.0,2.0)-1.0);
+            vec4 sampColor = texture2DCv(inputImg.texture,sampCoord);
+            if( maskToLayer ) {
+                sampColor *= texColor.a;
+                gl_FragColor = texColor * (1.-sampColor.a) + sampColor;
+            } else {
+                gl_FragColor = sampColor;
+            }
+
+        }
+
+    ]]></shader>
+
+</effect>

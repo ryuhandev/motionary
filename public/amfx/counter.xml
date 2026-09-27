@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.counter" name="@am:string/effect_counter_name" desc="@am:string/effect_counter_desc" affinity="text!" type="text" tags="text,utility,propadjust" category="text" thumb="thumb/countdown.webp">
+
+    <params>
+        <spinner id="offset" default="0" min="-100000" max="100000" step="1" label="@am:string/effect_param_add" ticks="0" />
+        <spinner id="scale" default="1" min="-2" max="2" step=".01" label="@am:string/effect_param_multiply" ticks="1" />
+    </params>
+
+
+    <script lang="js"><![CDATA[
+
+        let isNum = /(^[-+]?[0-9,]*\.[0-9,]*$)|(^[-+]?[0-9,]+$)/iu;
+
+        // From: https://stackoverflow.com/questions/5731193/how-do-i-format-numbers-using-javascript
+        function formatThousandsWithRounding(n, dp){
+          var w = n.toFixed(dp), k = w|0, b = n < 0 ? 1 : 0,
+              u = Math.abs(w-k), d = (''+u.toFixed(dp)).substr(2, dp),
+              s = ''+k, i = s.length, r = '';
+          while ( (i-=3) > b ) { r = ',' + s.substr(i, 3) + r; }
+          return s.substr(0, i + 3) + r + (d ? '.'+d: '');
+        };
+
+        function animate(env,el,p) {
+
+            let segments = el.text.match(/([-+]?[0-9,]*\.[0-9,]*)|([-+]?[0-9,]+)|(.)/giu);
+            if( !segments ) return el
+            el.text = segments.map( x => {
+                if(isNum.test(x)) {
+                    let floatX = Number.parseFloat(x.replace(/,/g,""));
+                    let adjusted = floatX*p.scale+p.offset;
+                    let dp = 0;
+                    if( x.includes(".") ) {
+                        dp = x.split(".").pop().replace(",","").length
+                    }
+                    if( x.includes("," ) )  {
+                        return formatThousandsWithRounding(adjusted,dp);
+                    } else {
+                        return adjusted.toFixed(dp);
+                    }
+                } else {
+                    return x
+                }
+            }).join("");
+
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

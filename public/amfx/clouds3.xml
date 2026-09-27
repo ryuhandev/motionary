@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.clouds3" name="@am:string/effect_clouds_name" desc="@am:string/effect_clouds_desc" tags="random,fractal,procedural,raster,membersOnly" category="procedural" thumb="thumb/clouds.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Clouds</string>-->
+            <!--<string name="desc">Procedurally generated clouds with multiple layers of depth.</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="parr" label="@am:string/effect_param_parallax" />
+        <point id="offs" label="@am:string/effect_param_offset" />
+        <spinner id="scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" />
+        <point id="stretch" min="0.01,0.01" max="10, 10" default="1.0, 1.0" step="0.01" label="@am:string/effect_param_stretch" />
+        <!--<spinner id="scale" default="1.0" min="0.1" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" />-->
+        <spinner id="intensity" default="0.5" min="0.25" max="0.75" label="@am:string/effect_param_intensity" step="0.01" snap="0.5" ticks="0.5" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+        <color id="color1" default="#FF000000" label="@am:string/effect_param_color1" alpha="true" />
+        <color id="color2" default="#FFFFFFFF" label="@am:string/effect_param_color2" alpha="true" />
+        <slider id="octaves" default="6" min="1" max="9" label="@am:string/effect_param_octaves" step="1" type="integer" ticks="1,2,3,4,5,6,7,8,9" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+
+        float random (in vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
+
+        // Based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            vec2 u = f * f * (3.0 - 2.0 * f);
+
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+        float fbm (vec2 st, vec2 parallax, int octaveCount, float intens) {
+            // Initial values
+            float value = 0.;
+            float amplitude = 0.5;
+            float frequency = 0.;
+            //
+            // Loop of octaves
+            for (int i = 0; i < octaveCount; i++) {
+                value += amplitude * noise(st);
+                st *= 2.0;
+                st += parallax;
+                amplitude *= intens;
+            }
+            return value;
+        }
+
+
+        void main() {
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm;
+            st.x *= acLayerSize.x/acLayerSize.y;
+
+            st += offs*vec2(-1.,1.)/500.; //vec2(offsx,offsy);
+
+            st += mod(vec2(821.921*seed,437.317*seed),vec2(4.365,7.701));
+
+            vec2 parallax = parr*vec2(-1.,1.)/100.; //vec2(parrx, parry);
+
+            vec2 scaleVec;
+            scaleVec = vec2(scale*stretch.x,scale*stretch.y);
+            
+            vec4 rcolor = mix(color1,color2,fbm( (st-vec2(0.5,0.5))*3.0/scaleVec+vec2(0.5,0.5), parallax, int(octaves), intensity));
+
+            rcolor *= texColor.a;
+
+            gl_FragColor = rcolor + texColor*(1.0-rcolor.a);
+        }
+
+    ]]></shader>
+
+</effect>

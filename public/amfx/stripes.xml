@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.stripes" name="@am:string/effect_stripes_name" desc="@am:string/effect_stripes_desc" category="procedural" tags="procedural,pattern,raster" thumb="thumb/stripes.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Stripes</string>-->
+            <!--<string name="desc">Stripes that overlay layer content. Color, spacing, thickness, and angle can be adjusted.</string>-->
+            <!--<string name="amount">Amount</string>-->
+            <!--<string name="width">Width</string>-->
+            <!--<string name="angle">Angle</string>-->
+            <!--<string name="color">Color</string>-->
+            <!--<string name="punchout">Punch Out</string>-->
+            <!--<string name="smoothing">Smoothing</string>-->
+            <!--<string name="phase">Phase</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="amount" default="10.0" min="0.5" max="200.0" label="@am:string/effect_param_count" step="0.1" ticks="10" />
+        <spinner id="width" default="0.5" min="0.0" max="1.0" label="@am:string/effect_param_width" step="0.01" ticks="0.5" />
+        <spinner id="angle" default="45.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <spinner id="phase" default="0.0" min="0.0" max="1000.0" label="@am:string/effect_param_phase" step="0.01" ticks="1,2,3,4,5,6,7,8,9,10"/>
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="false" />
+        <switch id="punchout" default="false" label="@am:string/effect_param_punchout" />
+        <spinner id="smoothing" default="0.01" min="0.0" max="0.5" label="@am:string/effect_param_smoothing" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st;
+            if(screenSpace) {
+                st = acScreenNorm;
+                st.y = 1.0  - st.y;
+                st -= 0.5;
+                st.x *= acScreenSize.x/acScreenSize.y;
+            } else {
+                st = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/length(acLayerSize);
+            }
+            //st /= st.y;
+            //st /= acLayerSize.y;
+            float a = angle * 0.0174533;
+            st *= mat2(
+                sin(a), -cos(a),
+                cos(a), sin(a)
+            );
+            float p = mod(st.x*amount+phase,1.0);
+            p = smoothstep(width,width-smoothing,p)*smoothstep(0.0,smoothing,p);
+            vec4 c = color * p;
+            if( punchout ) {
+                gl_FragColor = texColor * (1.0-p);
+            } else {
+                c *= texColor.a;
+                gl_FragColor = c + (texColor*(1.0-c.a));
+            }
+        }
+
+    ]]></shader>
+
+</effect>

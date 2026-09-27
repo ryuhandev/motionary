@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.lumakey3" name="@am:string/effect_lumakey_name" desc="@am:string/effect_lumakey_desc" category="matte" tags="matte,mask,key,compositing,membersOnly,glitch,raster" thumb="thumb/luma-key.png">
+
+    <!--<strings>-->
+    <!--<locale lang="en">-->
+    <!--<string name="name">Luma Key</string>-->
+    <!--<string name="desc">Makes pixels in the layer transparent based on how light or dark they are.</string>-->
+    <!--<string name="threshold">Threshold</string>-->
+    <!--<string name="feather">Feather</string>-->
+    <!--<string name="invert">Invert</string>-->
+    <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="lowThreshold" default="0" min="0" max="1" step="0.001" label="@am:string/effect_param_low"/>
+        <spinner id="highThreshold" default="1" min="0" max="1" step="0.001" label="@am:string/effect_param_high" />
+        <spinner id="feather" default="0.05" min="0" max="1" step="0.001" label="@am:string/effect_param_feather" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+        <switch id="weighted" default="true" label="@am:string/effect_param_weighted" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+        const vec3 uniformWeighting = vec3(0.3333, 0.3334, 0.3333);
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float luma = dot(texColor.rgb, weighted ? luminanceWeighting : uniformWeighting);
+
+            float lowThresholdB = (lowThreshold*(1.0+feather))-0.001;
+            float lowThresholdA = lowThresholdB-max(feather,0.00001);
+            float highThresholdA = (highThreshold*(1.0+feather)-feather)+0.001;
+            float highThresholdB = highThresholdA+max(feather,0.00001);
+
+            float lowBlend = smoothstep( lowThresholdA, lowThresholdB, luma );
+            float highBlend = 1. - smoothstep( highThresholdA, highThresholdB, luma );
+            float alpha = min(lowBlend,highBlend);
+            if(invert) alpha = 1.-alpha;
+            gl_FragColor = texColor*alpha;
+        }
+
+    ]]></shader>
+
+</effect>

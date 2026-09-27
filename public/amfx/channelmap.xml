@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.channelmap" name="@am:string/effect_channelmap_name" desc="@am:string/effect_channelmap_desc" tags="color,channel,utility,raster,lumaMap" thumb="thumb/cremap.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <selector id="red" default="0" style="radio" label="R" >
+            <choice label="R" value="0" />
+            <choice label="G" value="1" />
+            <choice label="B" value="2" />
+            <choice label="A" value="3" />
+            <choice label="Y" value="4" />
+            <choice label="0" value="5" />
+            <choice label="1" value="6" />
+        </selector>
+        <selector id="green" default="1" style="radio" label="G" >
+            <choice label="R" value="0" />
+            <choice label="G" value="1" />
+            <choice label="B" value="2" />
+            <choice label="A" value="3" />
+            <choice label="Y" value="4" />
+            <choice label="0" value="5" />
+            <choice label="1" value="6" />
+        </selector>
+        <selector id="blue" default="2" style="radio" label="B" >
+            <choice label="R" value="0" />
+            <choice label="G" value="1" />
+            <choice label="B" value="2" />
+            <choice label="A" value="3" />
+            <choice label="Y" value="4" />
+            <choice label="0" value="5" />
+            <choice label="1" value="6" />
+        </selector>
+        <selector id="alpha" default="3" style="radio" label="A" >
+            <choice label="R" value="0" />
+            <choice label="G" value="1" />
+            <choice label="B" value="2" />
+            <choice label="A" value="3" />
+            <choice label="Y" value="4" />
+            <choice label="0" value="5" />
+            <choice label="1" value="6" />
+        </selector>
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+
+            float luminance = dot(texColor.rgb, luminanceWeighting);
+
+            vec2 s = step(vec2(0.,0.), acLayerNorm) - step(vec2(1.,1.), acLayerNorm);
+            float maskFactor = s.x * s.y;
+
+            vec4 outColor = vec4(0.0);
+
+            if( texColor.a > 0.0 )
+                texColor.rgb /= texColor.a;
+
+            if( red==0 ) {
+                outColor.r = texColor.r;
+            } else if( red==1 ) {
+                outColor.r = texColor.g;
+            } else if( red==2 ) {
+                outColor.r = texColor.b;
+            } else if( red==3 ) {
+                outColor.r = texColor.a;
+            } else if( red==4 ) {
+                outColor.r = luminance;
+            } else if( red==5 ) {
+                outColor.r = 0.0;
+            } else {
+                outColor.r = 1.0;
+            }
+
+            if( green==0 ) {
+                outColor.g = texColor.r;
+            } else if( green==1 ) {
+                outColor.g = texColor.g;
+            } else if( green==2 ) {
+                outColor.g = texColor.b;
+            } else if( green==3 ) {
+                outColor.g = texColor.a;
+            } else if( green==4 ) {
+                outColor.g = luminance;
+            } else if( green==5 ) {
+                outColor.g = 0.0;
+            } else {
+                outColor.g = 1.0;
+            }
+
+            if( blue==0 ) {
+                outColor.b = texColor.r;
+            } else if( blue==1 ) {
+                outColor.b = texColor.g;
+            } else if( blue==2 ) {
+                outColor.b = texColor.b;
+            } else if( blue==3 ) {
+                outColor.b = texColor.a;
+            } else if( blue==4 ) {
+                outColor.b = luminance;
+            } else if( blue==5 ) {
+                outColor.b = 0.0;
+            } else {
+                outColor.b = 1.0;
+            }
+
+            if( alpha==0 ) {
+                outColor.a = texColor.r;
+            } else if( alpha==1 ) {
+                outColor.a = texColor.g;
+            } else if( alpha==2 ) {
+                outColor.a = texColor.b;
+            } else if( alpha==3 ) {
+                outColor.a = texColor.a;
+            } else if( alpha==4 ) {
+                outColor.a = luminance;
+            } else if( alpha==5 ) {
+                outColor.a = 0.0;
+            } else {
+                outColor.a = 1.0;
+            }
+
+            outColor.rgb *= outColor.a;
+
+            gl_FragColor = outColor * maskFactor;
+        }
+
+    ]]></shader>
+
+</effect>

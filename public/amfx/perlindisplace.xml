@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.perlindisplace" name="@am:string/effect_simplexdisplace_name" desc="@am:string/effect_simplexdisplace_desc" auto-transform="true" category="transform" thumb="thumb/simplexdisplace.webp" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Random Simplex Displacement</string>-->
+            <!--<string name="desc">Displaces element position randomly using a perlin simplex noise field.</string>-->
+            <!--<string name="freq">Frequency</string>-->
+            <!--<string name="mag">Magnitude</string>-->
+            <!--<string name="basis">Basis</string>-->
+            <!--<string name="time">Time</string>-->
+            <!--<string name="position">Position</string>-->
+            <!--<string name="seed">Seed</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="freq" default="2.0" min="0.05" max="16.0" label="@am:string/effect_param_freq" />
+        <slider id="mag" default="25" min="1" max="500" label="@am:string/effect_param_mag" />
+        <slider id="seed" default="0" min="0" max="10" label="@am:string/effect_param_seed" />
+        <selector id="basis" default="0" style="radio" label="@am:string/effect_param_basis" >
+            <choice label="@am:string/effect_param_time" value="0" />
+            <choice label="@am:string/effect_param_position" value="1" />
+        </selector>
+
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let t = env.time * p.freq * 4.0;
+            let dx, dy;
+            if( p.basis==0 ) {
+                dx = AM.simplexNoise(t,0,p.seed);
+                dy = AM.simplexNoise(0,t,p.seed);
+            } else {
+                dx = AM.simplexNoise(el.transform.location.x * p.freq / 500.0, el.transform.location.y * p.freq / 500.0, p.seed);
+                dy = AM.simplexNoise(el.transform.location.x * p.freq / 500.0, el.transform.location.y * p.freq / 500.0, p.seed+7468.329);
+            }
+            let m = 1.0;
+            dx *= p.mag * m;
+            dy *= p.mag * m;
+            el.transform.location.x += dx;
+            el.transform.location.y += dy;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

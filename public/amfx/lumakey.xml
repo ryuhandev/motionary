@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.lumakey" name="@am:string/effect_lumakey_name" desc="@am:string/effect_lumakey_desc" category="matte" thumb="thumb/luma-key.png" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Luma Key</string>-->
+            <!--<string name="desc">Makes pixels in the layer transparent based on how light or dark they are.</string>-->
+            <!--<string name="threshold">Threshold</string>-->
+            <!--<string name="feather">Feather</string>-->
+            <!--<string name="invert">Invert</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="threshold" default="0.5" min="0.0" max="1.0" label="@am:string/effect_param_threshold" />
+        <slider id="feather" default="0.05" min="0.01" max="0.75" label="@am:string/effect_param_feather" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+    </params>
+
+    <passes>
+        <pass target="hblur" />
+        <pass />
+    </passes>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float alpha = smoothstep( threshold-feather/2., threshold+feather/2., length(texColor.rgb) );
+            if(invert) alpha = 1.-alpha;
+            gl_FragColor = vec4(texColor.rgb*alpha,alpha);
+        }
+
+    ]]></shader>
+
+</effect>

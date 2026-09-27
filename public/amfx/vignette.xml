@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.vignette" name="@am:string/effect_vignette_name" desc="@am:string/effect_vignette_desc" category="matte" tags="matte,classic,frame,raster" thumb="thumb/vignette.png">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Directional Blur</string>-->
+            <!--<string name="desc">Blurs the layer in a specific direction</string>-->
+            <!--<string name="strength">Strength</string>-->
+            <!--<string name="angle">Angle</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+
+        <spinner id="scale" default="0.95" min="0.001" max="2.0" step="0.001" label="@am:string/effect_param_size" ticks="0.5,1.0" type="percent" />
+        <spinner id="roundness" default="1.5" min="0.0" max="9.9" step="0.01" label="@am:string/effect_param_roundness" ticks="1.0,2.0" type="percent" />
+        <spinner id="feather" default="0.5" min="0.001" max="1.0" step="0.001" label="@am:string/effect_param_feather" />
+
+        <spinner id="strength" default="0.8" min="0.0" max="1.0" step="0.005" label="@am:string/effect_param_strength" />
+        <spinner id="tint" default="0.2" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_tint" type="percent" />
+        <color id="overlaycolor" default="#FF000000" label="@am:string/effect_param_color" alpha="false" />
+        <switch id="punchout" default="false" label="@am:string/effect_param_punchout" />
+
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+
+            vec2 st = acLayerNorm;
+            st -= vec2(0.5,0.5);
+            st *= 2.;
+            st /= (scale+(feather/4.0));
+
+            float n = roundness+1.;
+            float d = pow(abs(st.x),n)+pow(abs(st.y),n);
+            float p = smoothstep(1.-feather,1.,d);
+
+            vec4 color = texture2DCv(inputImg.texture,acScreenNorm.st);
+            vec4 darkColor = color;
+            darkColor.rgb *= darkColor.rgb;
+            darkColor.rgb = mix(darkColor.rgb,overlaycolor.rgb*color.a,tint);
+            if(punchout) {
+                gl_FragColor = mix(color,vec4(0.),p*strength);
+            } else {
+                gl_FragColor = mix(color,darkColor,p*strength);
+            }
+        }
+
+    ]]></shader>
+
+</effect>

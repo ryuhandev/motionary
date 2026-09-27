@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.layernormtest" name="@string/name" desc="@string/desc" category="color" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">A0 Layer Norm Test</string>
+            <string name="desc">Test</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="f1" default="0.0" min="-1.0" max="1.0" label="f1" />
+        <slider id="f2" default="0.0" min="-1.0" max="1.0" label="f2" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+
+            vec4 texColor = texture2DCv(inputImg.texture,(vec4(mod(acLayerNorm,vec2(1.0,1.0)),0.0,1.0)*acLayerToScreen).xy);
+            float p = step(0.0,acLayerNorm.x) * step(acLayerNorm.x,1.0) * step(0.0,acLayerNorm.y) * step(acLayerNorm.y,1.0);
+            //vec4 overlay = vec4(1.0,0.5,0.0,1.0) * p;
+            vec4 overlay = vec4(acLayerNorm,p,1.0) * 0.5;
+            gl_FragColor = overlay + texColor*(1.0-overlay.a);
+
+        }
+
+    ]]></shader>
+
+</effect>

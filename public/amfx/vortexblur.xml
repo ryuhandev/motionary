@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.vortexblur" name="@am:string/effect_vortexblur_name" desc="@am:string/effect_vortexblur_desc" category="blur" tags="distort,fun,blur" thumb="thumb/vortexblur.webp" experimental="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Swirl</string>-->
+            <!--<string name="desc">A vortex-like deformation. Strength, radius, and center can be adjusted.</string>-->
+            <!--<string name="center">Center</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="strength" default="0.1" min="-0.5" max="0.5" label="@am:string/effect_param_strength" step="0.001" />
+        <spinner id="radius" default="0.3" min="0.0" max="0.8" label="@am:string/effect_param_radius" step="0.01" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+
+            vec2 texelSize = 1.0 / getTexSize(inputImg.size);
+            float Radius = radius;
+            float T = strength;
+
+            vec2 UV = acScreenNorm;
+
+            vec2 CENTER = centerPoint*vec2(-1,-1);
+
+            vec2 diff1 = acLayerCenter-CENTER;
+            diff1.y = acScreenSize.y - diff1.y;
+            vec2 diff = diff1 /acScreenSize;
+
+            UV -= diff;
+            vec2 convRate = vec2(1,1);
+            if(acScreenSize.y > acScreenSize.x)
+                convRate.y=(acScreenSize.y/acScreenSize.x);
+            else
+                convRate.x=(acScreenSize.x/acScreenSize.y);
+            UV *= convRate;
+
+            float Dist = length(UV);
+
+            vec4 color = vec4(0.0);
+            
+            if ( Dist < Radius )
+            {
+                float speed = 0.0;
+                float localPower = (Radius - Dist) / Radius;
+                {
+                  float A = ( T <= 0.5 ) ? mix( 0.0, 1.0, T/0.5 ) : mix( 1.0, 0.0, (T-0.5)/0.5 );
+                  float Theta = localPower * localPower * A * 8.0 * 3.14159;
+                  float l = Dist * Theta;
+                  speed = abs(l/texelSize.x*10.0);
+                }
+                float nSamples = float(clamp(speed, 1.01, 2000.01));
+                
+                vec2 v = UV/nSamples;
+                vec2 c = vec2(0.0);
+                float count = 0.0;
+                for(float d = max(Radius - abs(strength)*localPower, Dist); d <= Radius; d += 1.0/nSamples) {
+                    float Percent = (Radius - d) / Radius;
+                    vec2 cc = UV - c;
+                    c += v;
+                    float A = ( T <= 0.5 ) ? mix( 0.0, 1.0, T/0.5 ) : mix( 1.0, 0.0, (T-0.5)/0.5 );
+                    float Theta = Percent * Percent * A * 8.0 * 3.14159;
+                    float S = sin( Theta );
+                    float C = cos( Theta );
+                    vec2 res = vec2( dot(cc, vec2(C, -S)), dot(cc, vec2(S, C)) );
+                    res /= convRate;
+                    res += diff;
+                    color += texture2DCv(inputImg.texture, res);
+                    count += 1.0;
+                }
+                color /= count;
+            }
+            else {
+                UV /= convRate;
+                UV += diff;
+                color = texture2DCv(inputImg.texture, UV);
+            }
+            
+            gl_FragColor = color;
+
+        }
+
+    ]]></shader>
+
+</effect>

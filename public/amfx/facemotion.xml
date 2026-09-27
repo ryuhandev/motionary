@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.facemotion" name="@string/name" desc="@string/desc" category="transform" auto-transform="true" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Face Towards Motion</string>
+            <string name="desc">Rotate to face in direction of motion</string>
+        </locale>
+    </strings>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let v = env.velocity;
+            let a = Math.atan2(v.y,v.x) * 180 / Math.PI;
+            //AM.log("Velocity=" + env.velocity.x + "," + env.velocity.y + " a=" + a);
+            el.transform.angle += a;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

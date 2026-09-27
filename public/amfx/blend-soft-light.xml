@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.blend.softlight" name="Blend/Soft Light" internal="true">
+
+<params>
+    <texture id="inputImg" srcType="content" />
+    <texture id="comp" srcType="comp" />
+</params>
+
+<shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            // Setup
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 compColor = texture2DCv(comp.texture,acScreenNorm);
+            vec3 top = texColor.rgb;
+            vec3 bot = compColor.rgb * texColor.a;
+
+            // Blend top, bot
+            vec3 t = smoothstep(0.5,0.5,top);
+            vec3 result =
+                    t * (1. - (1.-bot) * (1.-(top-0.5))) +
+                    (1.-t) * (bot * (top+0.5));
+
+            // Output result
+            gl_FragColor = vec4(result,texColor.a);
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.voronoi2" name="@am:string/effect_voronoi_name" desc="@am:string/effect_voronoi_desc" category="procedural" tags="procedural,random,raster" thumb="thumb/voronoi.webp">
+
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="scale" default="1.00" min="0.01" max="100.0" step="0.01" label="@am:string/effect_param_scale" />
+        <spinner id="phase" default="0.0" min="-99.0" max="99.0" step="0.005" label="@am:string/effect_param_phase" />
+        <spinner id="lineWidth" default="0.0" min="0.0" max="1.0" step="0.005" label="@am:string/effect_param_line_width" />
+        <color id="color" default="#FFFFFFFF" label="@am:string/effect_param_color1" alpha="false" />
+        <color id="color2" default="#FF000000" label="@am:string/effect_param_color2" alpha="false" />
+        <color id="lineColor" default="#FF0000FF" label="@am:string/effect_param_color_line" alpha="false" />
+        <!--<slider id="density" default="1" min="1" max="3" label="@am:string/effect_param_density" step="1" type="integer" ticks="1,2,3,4,5,6,7,8,9" />-->
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            if( p.lineWidth > 0.001 ) {
+                el.shaderGroups = [1];
+            } else {
+                el.shaderGroups = [0];
+            }
+            return el;
+        }
+
+    ]]></script>
+
+    <shader type="fragment" precision="high" fastMath="false" group="0"><![CDATA[
+
+        float random (in vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
+
+        vec2 rand2v(vec2 co) {
+            return vec2(random(co),random(co+vec2(361.312,173.019)));
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+
+            vec2 st = acLayerNorm.st;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st -= vec2(0.5,0.5);
+
+            st /= (scale*0.07);
+
+            vec2 tile = floor(st);
+            vec2 tpart = fract(st);
+
+            float maxDist = 100.0;
+            vec2 nearestTile = vec2(0.0,0.0);
+            //vec2 nearestTileOffs = vec2(0.0,0.0);
+            //vec2 nearest_r = vec2(0.0,0.0);
+
+
+            float actualPhase = phase * 6.28318;
+
+            vec2 seedVec = vec2(123.215,272.055)*seed;
+
+            for( int i=-1; i<=1; i++ ) {
+                for( int j=-1; j<=1; j++ ) {
+                    vec2 checkTileOffs = vec2(float(i),float(j));
+                    vec2 p = rand2v(tile + checkTileOffs + seedVec);
+                    p = 0.5 + 0.5*sin(actualPhase + 6.2831*p);
+                    vec2 r = checkTileOffs + p - tpart;
+                    float dist = dot(r,r);
+                    if( dist < maxDist ) {
+                        maxDist = dist;
+                        //nearest_k = float(k);
+                        //nearest_r = r;
+                        nearestTile = checkTileOffs + tile;
+                        //nearestTileOffs = checkTileOffs;
+                    }
+                }
+            }
+
+            float colorPct =  random(nearestTile + vec2(721.117,433.215)*seed);
+
+            vec4 result = mix(color,color2,colorPct);
+
+            //result = vec4(actualMaxDist,abs(actualMaxDist),0.5,1.0);
+
+            result = result * texColor.a;
+
+            gl_FragColor = result;
+        }
+
+    ]]></shader>
+
+    <shader type="fragment" precision="high" fastMath="false" group="1"><![CDATA[
+
+        float random (in vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
+
+        vec2 rand2v(vec2 co) {
+            return vec2(random(co),random(co+vec2(361.312,173.019)));
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+
+            vec2 st = acLayerNorm.st;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st -= vec2(0.5,0.5);
+
+            st /= (scale*0.07);
+
+            vec2 tile = floor(st);
+            vec2 tpart = fract(st);
+
+            float maxDist = 100.0;
+            vec2 nearestTile = vec2(0.0,0.0);
+            vec2 nearestTileOffs = vec2(0.0,0.0);
+            vec2 nearest_r = vec2(0.0,0.0);
+
+
+            float actualPhase = phase * 6.28318;
+
+            vec2 seedVec = vec2(123.215,272.055)*seed;
+
+            for( int i=-1; i<=1; i++ ) {
+                for( int j=-1; j<=1; j++ ) {
+                    vec2 checkTileOffs = vec2(float(i),float(j));
+                    vec2 p = rand2v(tile + checkTileOffs + seedVec);
+                    p = 0.5 + 0.5*sin(actualPhase + 6.2831*p);
+                    vec2 r = checkTileOffs + p - tpart;
+                    float dist = dot(r,r);
+                    if( dist < maxDist ) {
+                        maxDist = dist;
+                        //nearest_k = float(k);
+                        nearest_r = r;
+                        nearestTile = checkTileOffs + tile;
+                        nearestTileOffs = checkTileOffs;
+                    }
+                }
+            }
+
+            float actualMaxDist = 100.0;
+            for( int i=-2; i<=2; i++ ) {
+                for( int j=-2; j<=2; j++ ) {
+                    vec2 checkTileOffs = nearestTileOffs + vec2(float(i),float(j));
+                    vec2 p = rand2v(tile + checkTileOffs + seedVec);
+                    p = 0.5 + 0.5*sin(actualPhase + 6.2831*p);
+                    vec2 r = checkTileOffs + p - tpart;
+                    if( dot(nearest_r-r,nearest_r-r) > 0.00001 ) {
+                        float dist = dot(0.5*(nearest_r+r), normalize(r-nearest_r));
+                        actualMaxDist = min(dist,actualMaxDist);
+                    }
+                }
+            }
+
+            float colorPct =  random(nearestTile + vec2(721.117,433.215)*seed);
+
+            vec4 result = mix(color,color2,colorPct); // * actualMaxDist;
+
+            vec4 line = lineWidth<0.00001 ? vec4(0.0) : lineColor * (1.0-smoothstep(lineWidth-0.02,lineWidth+0.001,actualMaxDist));
+
+            //result = vec4(actualMaxDist,abs(actualMaxDist),0.5,1.0);
+
+            result = line + ((1.0-line.a)*result);
+
+            result = result * texColor.a;
+
+            gl_FragColor = result;
+        }
+
+    ]]></shader>
+
+
+</effect>

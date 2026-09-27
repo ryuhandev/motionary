@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.edgeglow"
+    name="@am:string/effect_edge_glow_name"
+    desc="@am:string/effect_edge_glow_desc"
+    tags="drawing,edge,neon"
+    thumb="thumb/glow.png"
+    category="drawing"
+    experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="edge" srcType="buffer" />
+        <texture id="hblur" srcType="buffer" />
+        <spinner id="smoothing" default="5." min="1." max="10." step="0.01" label="@am:string/effect_param_smoothing" />
+        <spinner id="threshold" default="0.7" min="0." max="1." step="0.01" label="@am:string/effect_param_threshold" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+        <spinner id="strength" default="0.1" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_blur" />
+        <spinner id="spread" default="1.5" min="0.0" max="3.0" step="0.01" label="@am:string/effect_param_spread" />
+        <color id="fillColor" default="#FF0088FF" label="@am:string/effect_param_color" alpha="false" />
+        <slider id="blend" default="0.00" min="0.0" max="2" label="@am:string/effect_param_blend" type="percent" ticks="1" snap="1" />
+        <spinner id="gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" />
+        <spinner id="brightness" default="0.0" min="-1.0" max="1.0" label="@am:string/effect_param_brightness" ticks="0.0" snap="0.0" step="0.01" type="relative-percent" />
+        <color id="tintColor" default="#FF000000" label="@am:string/effect_param_tintColor" alpha="false" />
+        <spinner id="tint" default="0.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_tint" type="percent" />
+    </params>
+
+    <passes>
+        <pass target="edge" effect="com.alightcreative.effects.findedges-edgeglow" />
+        <pass target="hblur" effect="com.alightcreative.effects.gaussianblur" src="edge" />
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        void main() {
+
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+
+            vec4 glow = texture2DCv(hblur.texture, acScreenNorm.st);
+            vec4 base = texture2DCv(inputImg.texture, acScreenNorm.st);
+            glow.rgb /= glow.a;
+            base.rgb /= base.a;
+            glow.rgb = pow(glow.rgb, vec3(max(0.0001,3.-spread)));
+            base.rgb = pow(base.rgb,vec3(1.0/gamma));
+            base.rgb = ((base.rgb * rgb2yuv) + vec3(brightness,0.,0.)) * yuv2rgb;
+            base.rgb = saturate(base.rgb);
+            float lum = dot(luminanceWeighting, glow.rgb);
+            float fill = 1.0;
+            glow.rgb *= glow.a;
+            base.rgb *= base.a;
+            gl_FragColor = (mix(base,base*tintColor,tint)*fill) + mix(glow * mix(lum,1.,fill), fillColor*lum, max(saturate(blend)*(1.-lum),blend-1.0) );
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.spill-cleanup"
+    name="@am:string/effect_key_spill_cleaner_name"
+    desc="@am:string/effect_key_spill_cleaner_desc"
+    tags="key,matte,mask,raster"
+    category="matte"
+    experimental="false"
+    thumb="thumb/chroma-key.png">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="blurImg" srcType="buffer" />
+        <texture id="hstreak" srcType="buffer" />
+        <texture id="vstreak" srcType="buffer" />
+        <spinner id="strength" default="0.02" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_strength" />
+    </params>
+    
+    <passes>
+        <pass target="blurImg" effect="com.alightcreative.effects.gaussianblur" />
+        <pass target="hstreak" blend="overwrite"/>
+        <pass target="vstreak" blend="overwrite"/>
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+        
+        vec4 sampleTex(vec2 uv) {
+            if( acPass==1 ) {
+                return texture2DCv(blurImg.texture,uv);
+            } else {
+                return texture2DCv(hstreak.texture,uv);
+            }
+        }
+        
+        vec4 xstreak() {
+            float texelSize = 1.0 / acScreenSize.x;
+            float dist = strength * 0.05;
+            int nSamples = int(clamp(dist/texelSize,1.01,100.01));
+            vec4 c = vec4(0.);
+            for( int i=1; i<nSamples; i++ ) {
+                float offset = dist * (float(i)/float(nSamples-1) - 0.5);
+                vec2 sampleCoord = acScreenNorm + vec2(offset,0.);
+                vec4 tc = sampleTex(sampleCoord);
+                if( offset < 0. ) {
+                    c = c * (1.-tc.a) + tc;
+                } else {
+                    c = tc * (1.-c.a) + c;
+                }
+            }
+            return c;
+        }
+        
+        vec4 ystreak() {
+            float texelSize = 1.0 / acScreenSize.y;
+            float dist = strength * 0.05;
+            int nSamples = int(clamp(dist/texelSize,1.01,100.01));
+            vec4 c = vec4(0.);
+            for( int i=1; i<nSamples; i++ ) {
+                float offset = dist * (float(i)/float(nSamples-1) - 0.5);
+                vec2 sampleCoord = acScreenNorm + vec2(0.,offset);
+                vec4 tc = sampleTex(sampleCoord);
+                if( offset < 0. ) {
+                    c = c * (1.-tc.a) + tc;
+                } else {
+                    c = tc * (1.-c.a) + c;
+                }
+            }
+            return c;
+        }
+        
+        vec4 composite( vec4 a, vec4 b) {
+            return a * (1. - b.a) + b;
+        }
+
+        highp mat3 rgb2yuv = mat3(
+             0.299,     0.587,    0.114,
+            -0.14713,  -0.28886,  0.436,
+             0.615,    -0.51499, -0.10001
+        );
+        highp mat3 yuv2rgb = mat3(
+            1.0,  0.0,      1.13983,
+            1.0, -0.39465, -0.58060,
+            1.0,  2.03211,  0.0
+        );
+
+        void main() {
+            if( acPass==1 || acPass==2 ) {
+                vec4 c1 = xstreak();
+                vec4 c2 = ystreak();
+                vec4 blur = texture2DCv(blurImg.texture, acScreenNorm);
+                gl_FragColor = composite(composite(c1,c2),blur);
+            } else {
+                vec4 base = texture2DCv(inputImg.texture, acScreenNorm);
+                vec4 blur = texture2DCv(blurImg.texture, acScreenNorm);
+                vec4 streak = texture2DCv(vstreak.texture, acScreenNorm);
+                vec4 c = streak * saturate((1.-blur.a)*2.) * base.a;
+                vec3 baseYUV = (base.rgb/max(0.00001,base.a)) * rgb2yuv;
+                vec3 cYUV = (c.rgb/max(0.00001,c.a)) * rgb2yuv;
+                cYUV.x = baseYUV.x;
+                c = vec4(cYUV * yuv2rgb,1.) * c.a;
+                gl_FragColor = composite(base,c);
+            }
+        }
+
+    ]]></shader>
+
+</effect>

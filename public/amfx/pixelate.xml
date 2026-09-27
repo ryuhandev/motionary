@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.pixelate" name="@am:string/effect_pixelate_name" desc="@am:string/effect_pixelate_desc" category="distort" tags="distort,block,retro,raster" thumb="thumb/pixelate.webp" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="size" default="20" min="1" max="500" step="1" label="@am:string/effect_param_size" />
+        <spinner id="stretch" default="0.0" min="-2000" max="2000" label="@am:string/effect_param_stretch" step="0.1" ticks="0" />
+        <point id="offset" label="@am:string/effect_param_offset" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <spinner id="vignette" default="0" min="0" max="1" step="0.01" label="@am:string/effect_vignette_name" type="percent" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+        <section text="@am:string/effect_param_alpha" />
+        <spinner id="threshold" default="0" min="0" max="1" step="0.01" label="@am:string/effect_param_threshold" type="percent" />
+        <spinner id="saturation" default="0" min="0" max="1" step="0.01" label="@am:string/effect_param_saturation" type="percent" />
+
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        mat2 rot(float a) {
+            float c = cos(a);
+            float s = sin(a);
+            return mat2(
+                c, -s,
+                s, c
+            );
+        }
+
+        void main() {
+        
+            vec2 sizeVec = vec2(size,size);
+            if( stretch > 0.0 ) {
+                sizeVec.x *= 1.0 + (stretch/5.0);
+            } else if( stretch < 0.0 ) {
+                sizeVec.y *= 1.0 - (stretch/5.0);
+            }
+            
+            vec2 pixelSize = sizeVec / acScreenSize;
+            vec2 st = acScreenNorm;
+            if( !screenSpace )
+                st -= acLayerCenterNorm;
+            st *= rot(angle * 0.0174533);
+            st -= offset/1000.0;
+            vec2 posInPixel = mod(st,pixelSize);
+            posInPixel -= pixelSize/2.0;
+            posInPixel *= rot(-angle * 0.0174533);
+            posInPixel += pixelSize/2.0;
+            vec2 pixelCenter = acScreenNorm - posInPixel + pixelSize / 2.0;
+
+            float distCenter = smoothstep(0.0, 1.0, length((posInPixel/pixelSize) - vec2(0.5,0.5)));
+
+            vec4 color = texture2DCv(inputImg.texture,pixelCenter);
+            float tclamp = step(threshold, color.a);
+            if( color.a > 0.0 && saturation > 0.0 ) {
+                color /= color.a / max(color.a,saturation);
+            }
+            color = color * tclamp;
+            //color = mix(color, vec4(0.0,0.0,0.0,color.a), vignette * distCenter);
+            color = mix(color, vec4(min(color.rgb * color.rgb * color.rgb, vec3(0.9, 0.9, 0.9)),color.a * color.a * color.a), step(1.5, size) * vignette * distCenter);
+            //color = vec4(color.rgb * (1.0-(vignette*distCenter)), color.a);
+            gl_FragColor = color;
+        }
+
+    ]]></shader>
+
+</effect>
+

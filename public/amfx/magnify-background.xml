@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.magnifybg"
+    name="@am:string/effect_magnify_background_name"
+    desc="@am:string/effect_magnify_background_desc"
+    category="other"
+    tags="compositing,utility"
+    experimental="false"
+    thumb="thumb/stretch.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="comp" srcType="comp" />
+        <spinner id="scale" default="1" min="0.01" max="50.0" step="0.01" label="@am:string/effect_param_scale" ticks="0" />
+        <switch id="scaleMask" label="@am:string/effect_param_magnify_layer" default="false" />
+        <selector id="sample" style="radio" default="1" label="@am:string/effect_param_sampling">
+            <choice label="@am:string/effect_param_nearest" value="0"/>
+            <choice label="@am:string/effect_param_linear" value="1"/>
+        </selector>
+    </params>
+
+    vec4 composite( vec4 a, vec4 b) {
+        return a * (1. - b.a) + b;
+    }
+
+    <shader type="fragment"><![CDATA[
+
+        mat2 rot2(float a) {
+            float c = cos(a);
+            float s = sin(a);
+            return mat2(c, -s, s, c);
+        }
+        
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        void main() {
+        
+            vec2 st = acLayerNorm;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st /= scale;
+            st.x /= acLayerSize.x/acLayerSize.y;
+            st += 0.5;
+
+            vec2 sampleCoord = l2s(st);
+
+            if( sample == 0 ) {
+                sampleCoord *= acScreenSize;
+                sampleCoord = floor(sampleCoord) + 0.5;
+                sampleCoord /= acScreenSize;
+            }
+
+            vec4 scaledTexColor = texture2DCv(comp.texture,sampleCoord);
+            if( scaleMask ) {
+                vec4 baseColor = texture2DCv(inputImg.texture,sampleCoord);
+                gl_FragColor = scaledTexColor*baseColor.a;
+            } else {
+                vec4 baseColor = texture2DCv(inputImg.texture,acScreenNorm);
+                gl_FragColor = scaledTexColor*baseColor.a;
+            }
+            
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.test" name="@string/name" desc="@string/desc" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Test (Blur)</string>
+            <string name="desc">Test shader - please ignore</string>
+            <string name="strength">Strength</string>
+            <string name="color">Color</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <!--<slider id="red" default="1.0" min="0.0" max="2.0" label="Red" />-->
+        <!--<slider id="green" default="1.0" min="0.0" max="2.0" label="Green" />-->
+        <!--<slider id="blue" default="1.0" min="0.0" max="2.0" label="Blue" />-->
+        <slider id="strength" default="1.0" min="0.0" max="100.0" label="@string/strength" />
+        <!--<color id="userColor" default="#FF0000" label="@string/color" />-->
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            int from = -max(1,int(strength));
+            int to = max(1,int(strength));
+            vec4 outColor = vec4(0.0);
+            for(int i=from; i<to; i++ ) {
+                vec4 texColor = texture2DCv(inputImg.texture,vec2(acScreenNorm.s + float(i)*(1.0/1280.0),acScreenNorm.t));
+                //lowp float r = texColor.r;
+                //lowp float g = texColor.g;
+                //lowp float b = texColor.b;
+                outColor += texColor;
+            }
+            gl_FragColor = outColor/(float(to)*2.0);
+        }
+
+    ]]></shader>
+
+</effect>

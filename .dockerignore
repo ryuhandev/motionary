@@ -1,0 +1,8 @@
+node_modules/
+*.apks
+*.log
+.env
+.DS_Store
+test-output/
+ampreset/
+.opencode/

@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.spotcolor2" name="@am:string/effect_spotcolor_name" desc="@am:string/effect_spotcolor_desc" category="color" tags="color,raster" thumb="thumb/spotcolor.webp" >
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="color" default="#FFFF0000" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="threshold" default=".35" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_threshold" type="percent" />
+        <spinner id="feather" default=".25" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_feather" type="percent" />
+        <spinner id="saturation" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_saturation" snap="0.0" ticks="0.0" step="0.01" type="percent" />
+        <spinner id="choke" default="5.0" min="0.5" max="20.0" label="@am:string/effect_param_choke" snap="0.0" ticks="0.0" step="0.01"/>
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            if( env.editMode=="eyedropper-drag" && env.selected ) {
+                el.shaderGroups = [1];
+            } else {
+                el.shaderGroups = [0];
+            }
+            return el;
+        }
+
+    ]]></script>
+
+    <shader type="fragment" group="1"><![CDATA[
+
+        void main() {
+            gl_FragColor = texture2DCv(inputImg.texture,acScreenNorm);
+        }
+
+    ]]></shader>
+
+    <shader type="fragment" group="0"><![CDATA[
+
+        void main() {
+
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec3 spotColorYUV = color.rgb * rgb2yuv;
+            vec3 texColorYUV = texColor.rgb * rgb2yuv;
+            spotColorYUV.yz *= choke;
+            texColorYUV.yz *= choke;
+            float b = max(threshold-feather,0.);
+            float a = min(threshold+feather,1.);
+            float p = smoothstep( a, min(b,a-0.01), length(spotColorYUV - texColorYUV));
+
+            vec3 desatYUV = texColorYUV;
+            desatYUV.yz = desatYUV.yz * saturation / 2.0;
+            vec4 desaturatedColor = vec4(desatYUV * yuv2rgb, texColor.a);
+
+            gl_FragColor = mix(desaturatedColor,texColor,p);
+        }
+
+    ]]></shader>
+
+</effect>

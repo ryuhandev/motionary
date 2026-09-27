@@ -1,0 +1,116 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.wavewarp2" name="@am:string/effect_wavewarp_name" desc="@am:string/effect_wavewarp_desc" category="distort" tags="warp,raster,membersOnly" thumb="thumb/wavewarp.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Wave Warp</string>-->
+            <!--<string name="desc">Distorts the layer based on a cosine wave pattern. For an effect like a waving flag, set offset to 90º. For a water ripple effect, set offset to 0º. To animate this effect, keyframe the phase. If you plan to loop an animation, even phases (with no fraction) line up with each other.</string>-->
+            <!--<string name="spacing">Spacing</string>-->
+            <!--<string name="magnitude">Magnitude</string>-->
+            <!--<string name="offset">Offset</string>-->
+            <!--<string name="direction">Direction</string>-->
+            <!--<string name="phase">Phase</string>-->
+            <!--<string name="screenspace">Screen Space</string>-->
+            <!--<string name="damping">Damping</string>-->
+            <!--<string name="origin">Origin</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="phase" default="0" min="0" max="500.0" label="@am:string/effect_param_phase" step="0.01" snap="1" ticks="1,2,3,4,5" logscale="4" />
+        <spinner id="a1d" default="0.0" min="-1800.0" max="1800.0" label="@am:string/effect_param_angle" type="angle" step="0.5" snap="-135,-90,-45,0,45,90,135" ticks="-180,-135,-90,-45,0,45,90,135,180" />
+        <spinner id="m1" default="20" min="0" max="500.0" label="@am:string/effect_param_spacing" step="0.1" />
+        <spinner id="m2" default="4" min="0" max="30.0" label="@am:string/effect_param_magnitude" step="0.1" />
+        <spinner id="a2d" default="90.0" min="-180.0" max="180.0" label="@am:string/effect_param_warpangle" type="angle" snap="-135,-90,-45,0,45,90,135" ticks="-180,-135,-90,-45,0,45,90,135,180" />
+        <section text="@am:string/effect_param_damping" />
+        <spinner id="damping" default="0" min="-1" max="1" label="@am:string/effect_param_magnitude" step="0.01" type="percent" snap="0" valueOrigin="0" />
+        <spinner id="dampingSpace" default="0" min="-1" max="1" label="@am:string/effect_param_spacing" step="0.01" type="percent" snap="0" valueOrigin="0" />
+        <spinner id="dampingOrigin" default="0.5" min="0" max="1" label="@am:string/effect_param_anchor" step="0.01" ticks="0.5" snap="0" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+    </params>
+
+    <presets>
+        <preset id="flag-left" label="Waving Flag (Left)" timescale="2000" timing="extend" short-code="WA1" >
+            <property name="damping" type="float" value="-1"/>
+            <property name="dampingOrigin" type="float" value="1"/>
+            <property name="m1" type="float" value="10"/>
+            <property name="m2" type="float" value="1.7"/>
+            <property name="phase" type="float">
+                <kf t="0" v="4"/>
+                <kf t="1" v="0"/>
+            </property>
+        </preset>
+        <preset id="flag-right" label="Waving Flag (Right)" timescale="2000" timing="extend" short-code="WA2" >
+            <property name="damping" type="float" value="-1"/>
+            <property name="dampingOrigin" type="float" value="0"/>
+            <property name="m1" type="float" value="10"/>
+            <property name="m2" type="float" value="1.7"/>
+            <property name="phase" type="float">
+                <kf t="0" v="0"/>
+                <kf t="1" v="4"/>
+            </property>
+        </preset>
+    </presets>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+
+            float a1 = a1d * 0.0174533;
+            float a2 = (a1d+a2d) * 0.0174533;
+
+            vec2 st;
+            if( screenSpace ) {
+                st = acScreenNorm;
+            } else {
+                st = acLayerNorm;
+            }
+
+            vec2 raw_v = vec2(cos(a1),-sin(a1));
+            float raw_p = dot(st,raw_v);
+            float space_damp = 1.0;
+            if( dampingSpace < 0.0 ) {
+                space_damp = 1.0 - ( clamp(abs(raw_p-dampingOrigin),0.0,1.0) * (0.0-dampingSpace));
+            } else if( dampingSpace > 0.0 ) {
+                space_damp = 1.0 - ( (1.0 - clamp(abs(raw_p-dampingOrigin),0.0,1.0) ) * dampingSpace);
+            }
+
+            float space = m1 * space_damp;
+
+            vec2 v = vec2(cos(a1),-sin(a1)) * space;
+            float p = dot(st,v);
+
+            float ddist = abs(p/space);
+
+            float damp = 1.0;
+            if( damping < 0.0 ) {
+                damp = 1.0 - ( clamp(abs(ddist-dampingOrigin),0.0,1.0) * (0.0-damping));
+            } else if( damping > 0.0 ) {
+                damp = 1.0 - ( (1.0 - clamp(abs(ddist-dampingOrigin),0.0,1.0) ) * damping);
+            }
+
+            vec2 offs = vec2(cos(a2),-sin(a2)) * (m2*damp)/100.0;
+            offs *= sin(p+phase*6.28318);
+
+            //if( !screenSpace ) {
+            //    st = (vec4(st,0.0,1.0) * acLayerToScreen).xy;
+            //}
+            vec4 texColor = texture2DCv(inputImg.texture, acScreenNorm+offs);
+            gl_FragColor = texColor; //vec4(ddist*texColor.a,texColor.gba);
+
+
+            //mat2 rot = mat2(
+            //    cos(a), -sin(a),
+            //    sin(a), cos(a)
+            //);
+            //
+            //vec2 st = acLayerNorm;
+            //st += sin((st*rot).y*freq+phase)*mag;
+            //gl_FragColor = texture2DCv(inputImg.texture,(vec4(st,0.0,1.0)*acLayerToScreen).xy);
+
+        }
+
+    ]]></shader>
+
+</effect>

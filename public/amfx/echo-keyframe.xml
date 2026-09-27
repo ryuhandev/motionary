@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.repeat.echokf"
+    name="@am:string/effect_echo_keyframes_name"
+    desc="@am:string/effect_echo_keyframes_desc"
+    category="other"
+    experimental="false"
+    tags="time"
+    thumb="thumb/repeat-linear.png">
+
+    <params>
+        <tip text="@am:string/effect_tip_echokf" />
+        <spinner id="seconds" default="0.5" min="-60.0" max="60.0" label="@am:string/effect_param_seconds" ticks="-10,-5,-1,0,1,5,10" snap="-10,-5,-1,0,1,5,10" step="0.001" />
+        <spinner id="count" default="1" min="0" max="20" step="1" label="@am:string/effect_param_count" />
+        <spinner id="alpha" default="1" min="0" max="1" step="0.01" label="@am:string/effect_param_alpha" />
+        <selector id="mode" default="1" style="radio" label="@am:string/effect_param_composite" >
+            <choice label="@am:string/effect_param_atop" value="0" />
+            <choice label="@am:string/effect_param_behind" value="1" />
+        </selector>
+
+    </params>
+
+</effect>

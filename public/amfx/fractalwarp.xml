@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.fractalwarp" name="@string/name" desc="@string/desc" category="distort" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Fractal Warp</string>
+            <string name="desc">Fractal Warp shader</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="GAIN" default="0.452" min="0.01" max=".99" label="Gain" />
+        <slider id="LACUNARITY" default="4.012" min="0.1" max="10.0" label="Lacunarity" />
+        <slider id="AMP" default="-0.5" min="-2.0" max="2.0" label="Amplitude" />
+        <slider id="SPEED" default="1.0" min="0.25" max="10.0" label="Speed" />
+        <slider id="FREQ" default="1.352" min="0.5" max="2.0" label="Zoom" />
+        <slider id="LUMA" default="1.172" min="0.5" max="2.0" label="Luma" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        float random (in vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))
+                         * 43758.5453123);
+        }
+
+        // 2D Noise based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            // Smooth Interpolation
+
+            // Cubic Hermine Curve.  Same as SmoothStep()
+            vec2 u = f*f*(3.0-2.0*f);
+            // u = smoothstep(0.,1.,f);
+
+            // Mix 4 coorners porcentages
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+        #define OCTAVES 4
+        //#define GAIN 0.452
+        //#define LACUNARITY 4.012
+
+        float fbm(vec2 st) {
+            float luma = LUMA;
+            float amplitude = AMP;
+            float frequency = FREQ;
+            for (int i = 0; i < OCTAVES; i++) {
+                luma += amplitude * noise(frequency*st);
+                frequency *= LACUNARITY;
+                amplitude *= GAIN;
+            }
+            return luma;
+        }
+
+
+        void main() {
+
+            //vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            //if( texColor.a <= 0.0001 )
+            //    discard;
+
+            // --- Shader -------------------------------------
+            float t = acTime * SPEED;
+
+            vec2 st = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/acLayerSize;
+            st.y*=acLayerSize.y/acLayerSize.x;
+
+            vec2 qq = vec2(st.y * sin(st.x*18.280+t*2.),
+                           st.x * sin(st.y*4.+t*1.));
+            vec2 vv = vec2(st.y * sin(st.x*18.280+qq.x*2.),
+                           st.x * sin(st.y*4.+qq.y*1.));
+
+            qq = vec2(st.y + t*.1,
+                           st.x + t*.2);
+            vv = vec2(st.x*fbm(qq*2.1),st.y*fbm(qq*3.4));
+
+            //vv = st;
+            //highp float aa = fbm(vv*3.1);
+            //highp float bb = fbm(vv);
+            //highp float cc = fbm(vv*.4);
+
+            gl_FragColor = texture2DCv(inputImg.texture,acScreenNorm.xy + vv);
+
+        }
+
+    ]]></shader>
+
+</effect>

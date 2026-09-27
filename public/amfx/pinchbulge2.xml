@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.pinchbulge2" name="@am:string/effect_pinchbulge_name" desc="@am:string/effect_pinchbulge_desc" category="distort" tags="distort,fun,raster" thumb="thumb/pinchbulge2.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="effect_pinchbulge_name">Pinch/Bulge</string>-->
+            <!--<string name="effect_pinchbulge_desc">Distorts the layer by pinching it towards the center or expanding it outward.</string>-->
+            <!--<string name="effect_param_center">Center</string>-->
+            <!--<string name="effect_param_strength">Strength</string>-->
+            <!--<string name="effect_param_radius">Radius</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="strength" default="-0.9" min="-1" max="1" label="@am:string/effect_param_strength" step="0.01" ticks="-0.5,0,0.5"/>
+        <spinner id="radius" default="0.3" min="0.0" max="2.5" label="@am:string/effect_param_radius" step="0.005" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            vec2 UV = acScreenNorm;
+            vec2 center = acLayerCenterNorm-(centerPoint/1000. * vec2(-1.,1.));
+
+            UV -= center;
+            UV.x *= acScreenSize.x / acScreenSize.y;
+            float dist = length(UV);
+            if ( dist < radius ) {
+                float p = dist / radius;
+                if(strength > 0.) {
+                    UV *= mix(1.0, smoothstep(0.0, radius / dist, p), strength * 0.75);
+                } else {
+                    UV *= mix(1.0, pow(p, 1.0 + strength * 0.75) * radius / dist, 1.0 - p);
+                }
+            }
+            UV.x /= acScreenSize.x / acScreenSize.y;
+            UV += center;
+
+            gl_FragColor = texture2DCv(inputImg.texture,UV);
+
+        }
+
+    ]]></shader>
+
+</effect>

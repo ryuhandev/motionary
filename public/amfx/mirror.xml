@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.mirror" name="@am:string/effect_mirror_name" desc="@am:string/effect_mirror_desc" category="distort" tags="distort,raster" thumb="thumb/mirror.webp" overdraw="true" max-overdraw="0.1" >
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <!--<point id="centerPoint" label="@am:string/effect_param_center" />-->
+        <!--<spinner id="strength" default="0.0" min="-2" max="2" label="@am:string/effect_param_strength" step="0.01" ticks="-1.0,-0.5,0,0.5,1.0"/>-->
+        <selector id="type" default="0" style="radio" >
+            <choice label="@am:string/effect_param_horizontal" value="0" />
+            <choice label="@am:string/effect_param_vertical" value="1" />
+        </selector>
+        <selector id="blendMode" style="dropdown" default="0" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_over" value="3" />
+            <choice label="@am:string/effect_param_under" value="4" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+        <spinner id="alpha" default="1.0" min="0" max="1" step="0.001" label="@am:string/effect_param_alpha" type="percent" />
+        <spinner id="offset" default="0.0" min="-2" max="2" step="0.001" label="@am:string/effect_param_offset" type="percent" />
+
+        <!--<spinner id="radius" default="0.3" min="0.0" max="2.5" label="@am:string/effect_param_radius" step="0.005" />-->
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        void main() {
+            vec2 st = acLayerNorm;
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+
+            if( type==1 ) {
+                st.y = 1.-st.y;
+                st.y += offset;
+            } else {
+                st.x = 1.-st.x;
+                st.x += offset;
+            }
+
+            vec4 color = texture2DCv(inputImg.texture,l2s(st));
+
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*color.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-color.rgb)),1.0) * texColor.a;
+            } else if( blendMode==3 ) {
+                result = texColor * (1.-color.a) + color;
+            } else if( blendMode==4 ) {
+                result = color * (1.-texColor.a) + texColor;
+            } else {
+                result = color;
+            }
+
+            gl_FragColor = mix(texColor,result,alpha);
+        }
+
+    ]]></shader>
+
+</effect>

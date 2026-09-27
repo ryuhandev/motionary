@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.outlinebasic" name="@string/name" desc="@string/desc" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Outline</string>
+            <string name="desc">Outline</string>
+            <string name="radius">Radius</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="hdist" srcType="buffer" />
+        <slider id="radius" default="5.0" min="0.0" max="100.0" label="@string/radius" />
+    </params>
+
+    <passes>
+        <pass target="hdist" />
+        <pass />
+    </passes>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            int from = -max(1,int(radius));
+            int to = max(1,int(radius));
+            vec4 outColor;
+            if( acPass==0 ) {
+                float nearest = radius * 2.0;
+                for(int i=from; i<to; i++ ) {
+                    vec4 inColor = texture2DCv(inputImg.texture,vec2(acScreenNorm.s + float(i)*(1.0/getTexSize(inputImg.size).x),acScreenNorm.t));
+                    float xdist = inColor.a > 0.0 ? abs(float(i)) : radius*2.0;
+                    nearest = min(nearest,xdist);
+                }
+                outColor = vec4(nearest/radius);
+            } else {
+                float t = 2.0;
+                for(int i=from; i<to; i++ ) {
+                    vec4 inColor = texture2DCv(hdist.texture,vec2(acScreenNorm.s,acScreenNorm.t + float(i)*(1.0/getTexSize(inputImg.size).y)));
+                    float xdist = inColor.r;
+                    float ydist = abs(float(i))/radius;
+                    float dist = length(vec2(xdist,ydist));
+                    t = min(t,dist);
+                }
+                outColor = t <= 0.95 ? vec4(1.0,0.0,0.0,1.0) : vec4(0.0);
+                vec4 original = texture2DCv(inputImg.texture,acScreenNorm.st);
+                outColor = original + outColor*(1.0-original.a);
+                //outColor = vec4(t,0.0,0.0,t);
+            }
+            gl_FragColor = outColor;
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.hueshift" name="@am:string/effect_hueshift_name" desc="@am:string/effect_hueshift_desc" category="color" tags="color,raster" thumb="thumb/hueshift.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Hue Shift</string>-->
+            <!--<string name="desc">Rotates the color hues in an image.</string>-->
+            <!--<string name="hue">Hue Shift</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <!--<slider id="hue" default="0.0" min="0.0" max="360.0" label="@am:string/effect_hue" ticks="0,60,120,180,240,300,360" snap="60,120,180,240,300" type="integer" steps="360" />-->
+        <spinner id="hue" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_hueshift" ticks="0,60,120,180,240,300,360" snap="60,120,180,240,300" type="angle" step="0.5" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+            float rad = hue * 0.0174533;
+            highp mat3 huemat = mat3(
+                1.0,  0.0,       0.0,
+                0.0,  cos(rad),  sin(rad),
+                0.0,  -sin(rad), cos(rad)
+            );
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            highp vec3 rgb = texColor.rgb;
+            lowp float a = texColor.a;
+            highp vec3 yuv = rgb * rgb2yuv;
+            //yuv.yz = yuv.yz * (saturation+1.0);
+            yuv = yuv * huemat;
+            rgb = yuv * yuv2rgb;
+            //rgb = (rgb - 0.5) * (contrast+1.0) + 0.5 + brightness;
+            gl_FragColor = vec4(rgb,a);
+        }
+
+    ]]></shader>
+
+</effect>

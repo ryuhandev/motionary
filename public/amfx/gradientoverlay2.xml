@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.gradientoverlay2" name="@am:string/effect_gradientoverlay_name" desc="@am:string/effect_gradientoverlay_desc" category="color" tags="color,gradient,raster" thumb="thumb/gradover.webp" deprecated="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="color1" default="#FFEE5533" label="@am:string/effect_param_color1" alpha="true" />
+        <color id="color2" default="#FFFFEE88" label="@am:string/effect_param_color2" alpha="true" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <point id="offset" label="@am:string/effect_param_offset" />
+        <spinner id="scale" default="1.0" min="0.1" max="10.0" label="@am:string/effect_param_scale" step="0.01" ticks="1.0" />
+        <spinner id="alpha" default="0.75" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_alpha" type="percent" />
+        <selector id="gradType" style="radio" default="0">
+            <choice label="@am:string/effect_param_grad_linear" value="0" />
+            <choice label="@am:string/effect_param_grad_radial" value="1" />
+            <choice label="@am:string/effect_param_grad_sweep" value="2" />
+        </selector>
+        <selector id="blendMode" style="dropdown" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float a = angle * 0.0174533;
+            vec2 st = acLayerNorm;
+            st -= 0.5;
+            st -= (offset*vec2(1,-1)) / 500.;
+            st /= scale;
+            st *= mat2(
+                sin(a), -cos(a),
+                cos(a), sin(a)
+            );
+            st += 0.5;
+            float t;
+
+            if( gradType == 0 ) {
+                t = st.x;
+            } else if ( gradType == 1 ) {
+                t = length( st - 0.5 ) * 2.0;
+            } else if ( gradType == 2 ) {
+                vec2 xy = st - 0.5;
+                vec2 zw = vec2(0,1.0);
+                float a = atan(xy.x, xy.y);
+                float b = atan(zw.x, zw.y);
+                t = mod(((a-b)+6.28),6.28)/6.28;
+            } else {
+                t = st.x;
+            }
+
+            t = clamp(t,0.0,1.0);
+
+            vec4 color = mix(color1, color2, t);
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*color.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-color.rgb)),1.0) * texColor.a;
+            } else {
+                result = vec4(color.rgb,1.0)*texColor.a;
+            }
+            gl_FragColor = mix(texColor,result,alpha*color.a);
+        }
+
+    ]]></shader>
+
+</effect>

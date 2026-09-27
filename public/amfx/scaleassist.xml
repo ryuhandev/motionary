@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.scaleassist" name="@am:string/effect_scaleassist_name" desc="@am:string/effect_scaleassist_desc" category="transform" tags="transform,propAdjust,parenting" thumb="thumb/pulsate.webp">
+
+    <params>
+        <selector id="axis" default="3" style="radio" label="@am:string/effect_param_axis" >
+            <choice label="X" value="0" />
+            <choice label="Y" value="1" />
+            <choice label="X,Y" value="2" enableTargets="damp" />
+            <choice label="X,-Y" value="3" enableTargets="damp" />
+        </selector>
+        <spinner id="scale" default="1.0" min="0.0" max="1000.0" step="0.001" label="@am:string/effect_param_scale" type="percent" ticks="0.5,1.0,1.5,2.0" />
+        <spinner id="damp" default="1.0" min="0.0" max="1000.0" step="0.01" label="@am:string/effect_param_damping" type="percent" ticks="0.5,1.0,1.5,2.0" enabled="false" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            if( p.axis == 0 ) {
+                el.transform.scale.x *= p.scale;
+            } else if( p.axis == 1 ) {
+                el.transform.scale.y *= p.scale;
+            } else if( p.axis == 2 ) {
+                el.transform.scale.x *= p.scale;
+                el.transform.scale.y *= (p.scale * p.damp);
+            } else if( p.axis == 3 ) {
+                el.transform.scale.x *= p.scale;
+                el.transform.scale.y *= 1.0-((p.scale-1.0) * p.damp);
+            }
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

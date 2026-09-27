@@ -1,0 +1,229 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.hexarray" name="@am:string/effect_hexarray_name" desc="@am:string/effect_hexarray_desc" category="procedural" tags="procedural,geometric,retro" thumb="thumb/hexarray.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="position" label="@am:string/effect_param_offset" />
+        <spinner id="size" default="10.0" min="0.5" max="200.0" label="@am:string/effect_param_size" step="0.1" ticks="10" />
+        <spinner id="stretch" default="1.0" min="0.01" max="10.0" label="@am:string/effect_param_stretch" step="0.01" ticks="1" />
+        <!--<spinner id="test" default="0.0" min="-100.0" max="100.0" label="Test" step="0.001" ticks="1" />-->
+
+        <selector id="colorMode" style="dropdown" default="1" label="@am:string/effect_param_coloring">
+            <choice label="@am:string/effect_param_coloring_layer" value="0" />
+            <choice label="@am:string/effect_param_coloring_solid" value="1" />
+            <choice label="@am:string/effect_param_coloring_stripes" value="2" />
+            <choice label="@am:string/effect_param_coloring_tricolor" value="3" />
+            <choice label="@am:string/effect_param_coloring_cube" value="4" />
+            <choice label="@am:string/effect_param_coloring_triangles" value="5" />
+            <choice label="@am:string/effect_param_coloring_pentagonal" value="6" />
+        </selector>
+
+        <color id="color1" default="#FF0000FF" label="@am:string/effect_param_color1" alpha="true" />
+        <color id="color2" default="#FFFF0000" label="@am:string/effect_param_color2" alpha="true" />
+        <color id="color3" default="#FF00FF00" label="@am:string/effect_param_color3" alpha="true" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+
+        <selector id="blendMode" style="dropdown" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_overlay" value="5" />
+            <choice label="@am:string/effect_param_overflow" value="3" />
+            <choice label="@am:string/effect_param_punchout" value="4" />
+        </selector>
+
+        <switch id="alphaScale" default="false" label="@am:string/effect_param_scale_using_layer_alpha" />
+        <switch id="copyAlpha" default="false" label="@am:string/effect_param_copy_layer_alpha" />
+        <spinner id="lineWidth" default="0.1" min="0.0" max="1.0" step="0.005" label="@am:string/effect_param_line_width" />
+        <spinner id="feather" default="0.05" min="0.0" max="1.0" label="@am:string/effect_param_feather" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const float PI = 3.14159;
+        const float ulp = PI/240.;
+
+        const vec2 hexRatio = vec2(1.0, 1.73);
+        const vec2 hexRatioNorm = normalize(hexRatio);
+
+        float hexDist(vec2 p) {
+            return max(dot(abs(p), hexRatioNorm), abs(p.x));
+        }
+
+        void hexTile(vec2 st, out vec2 uv, out vec2 huv, out vec2 id) {
+            vec2 grid = mod(st, hexRatio)-hexRatio/2.;
+            vec2 offsetGrid = mod(st-hexRatio/2., hexRatio)-hexRatio/2.;
+            uv = length(grid) < length(offsetGrid) ? grid : offsetGrid;
+            huv = vec2(atan(uv.x, uv.y), (.5-hexDist(uv))*2.);
+            id = vec2(st.x-uv.x, st.y-uv.y);
+        }
+
+        mat2 rot(float a) {
+            float c = cos(a);
+            float s = sin(a);
+            return mat2(
+                c, -s,
+                s, c
+            );
+        }
+
+        vec2 l2s( vec2 v, mat4 acLTS ) {
+            return (vec4(v,0.,1.)*acLTS).xy;
+        }
+
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st;
+            if(screenSpace) {
+                st = acScreenNorm;
+                st -= 0.5;
+                st.x *= acScreenSize.x/acScreenSize.y;
+            } else {
+                st = acLayerNorm;
+                st -= 0.5;
+                st.x *= acLayerSize.x/acLayerSize.y;
+            }
+            
+            vec2 scale = vec2(size/100., size/100. * stretch);
+            vec2 pos = (position/500.) * vec2(1., -1.);
+
+            st /= scale;
+
+            st *= rot(angle * 0.0174533);
+
+            pos *= rot(-angle * 0.0174533);
+
+            vec2 modPos = mod(pos,hexRatio*2.);
+            vec2 basePos = pos - modPos;
+            vec2 stepPos = basePos;// hexRatio;
+            st -= modPos;
+
+            vec2 uv;
+            vec2 huv;
+            vec2 id;
+            hexTile(st,uv,huv,id);
+
+            id -= stepPos;// * vec2(1.,-1.);
+            id += 1000.;
+
+            vec2 screenCoord;
+            screenCoord = st-uv;
+            screenCoord += modPos;
+            screenCoord *= rot(-angle * 0.0174533);
+            screenCoord *= scale;
+            screenCoord.x /= acLayerSize.x/acLayerSize.y;
+            screenCoord += 0.5;
+            screenCoord = l2s(screenCoord,acLayerToScreen);
+            vec4 centerColor = texture2DCv(inputImg.texture,screenCoord);
+
+            float pp;
+            if( alphaScale ) {
+                pp = max(1. - centerColor.a, lineWidth);
+            } else if (blendMode == 3) {
+                pp = max(1. - step(0.001,centerColor.a), lineWidth);
+            } else {
+                pp = lineWidth;
+            }
+            //float p = smoothstep(pp,pp+(1.0-pp)*feather,huv.y);
+            pp = ((pp-0.5) * (1.0+feather)) + 0.5;
+            //pp *= 1.0 - feather;
+            //pp += feather / 2.;
+            float p = smoothstep(pp-feather/2.,pp+feather/2.,huv.y);
+
+            vec4 color;
+            if( colorMode == 0 ) {
+                color = centerColor;
+            } else if ( colorMode == 1 ) {
+                color = color1;
+                color.rgb *= color.a;
+            } else if ( colorMode == 2 ) {
+                float ys = step(1.73/2.,mod(id.y, 1.73));
+                color = mix(color1,color2,ys);
+                color.rgb *= color.a;
+            } else if ( colorMode == 3 ) {
+                float ys = step(1.73/2.,mod(id.y, 1.73));
+                color = color1;
+                color = mix(color,color2,step(0.33,mod(id.x + ys*1.66, 3.)));
+                color = mix(color3,color,step(0.33,mod(id.x + 1.16 + ys*1.66, 3.)));
+                color.rgb *= color.a;
+            } else if ( colorMode == 4 ) {
+                color = color1;
+                color = mix(color,color3,smoothstep( PI*2./3. - ulp, PI*2./3. + ulp, huv.x + PI));
+                color = mix(color,color2,smoothstep( PI/3. - ulp, PI/3. + ulp, huv.x));
+                color.rgb *= color.a;
+            } else if ( colorMode == 5 ) {
+                float section = floor((huv.x + PI) * 3. / PI);
+                if( section < 1. ) {
+                    color = color1;
+                } else if (section < 2. ) {
+                    color = color2;
+                } else if (section < 3. ) {
+                    color = color1;
+                } else if (section < 4. ) {
+                    color = color3;
+                } else if (section < 5. ) {
+                    color = color1;
+                } else {
+                    color = color2;
+                }
+                color.rgb *= color.a;
+            } else if ( colorMode == 6 ) {
+                float section = floor((huv.x + PI) * 6. / PI);
+                if( section < 1. ) {
+                    color = color1;
+                } else if (section < 5. ) {
+                    color = color2;
+                } else if (section < 9. ) {
+                    color = color3;
+                } else {
+                    color = color1;
+                }
+                color.rgb *= color.a;
+            //} else if ( colorMode == 7 ) {
+            //    color = mix(color1,color2,(sin(id.x/2.0)+1.)/2.);
+            }
+
+            //vec4 c = color * p;
+
+            color *= p;
+
+            if( copyAlpha ) {
+                color *= centerColor.a;
+            }
+
+            color *= alpha;
+
+            vec4 result;
+            if( blendMode==0 ) {                // normal
+                color *= texColor.a;
+                result = color + (texColor*(1.0-color.a));
+            } else if( blendMode==1 ) {         // multiply
+                vec4 c = color + vec4(1.)*(1.-color.a);
+                result = vec4((texColor.rgb/texColor.a)*c.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {         // screen
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-color.rgb)),1.0) * texColor.a;
+            } else if( blendMode==3 ) {         // overflow
+                result = color;
+            } else if( blendMode==4 ) {         // punchout
+                result = texColor * (1.0-p);
+            } else if( blendMode==5 ) {         // overlay
+                vec3 top = color.rgb / color.a;
+                vec3 bot = texColor.rgb / texColor.a;
+                vec3 t = smoothstep(0.5,0.5,bot);
+                vec3 r3 =
+                        t * (1. - (1.-2.*(bot-0.5)) * (1.-top)) +
+                        (1.-t) * ((2.*bot) * top);
+                vec4 r4 = vec4(r3, 1.0) * color.a * texColor.a;
+                result = texColor * (1.-r4.a) + r4;
+            }
+
+            gl_FragColor = result;
+
+        }
+
+    ]]></shader>
+
+</effect>

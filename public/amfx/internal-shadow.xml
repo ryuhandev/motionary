@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.internal.shadow" name="@string/name" desc="@string/desc" internal="true">
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="downImg" srcType="buffer" downsample="2" />
+        <texture id="hblur" srcType="buffer" downsample="2"/>
+        <spinner id="sigma" default="1.0" min="0.0" max="10.0" label="sigma" step="0.005" />
+        <slider id="sdx" default="5.0" min="-50.0" max="50.0" label="@string/offsx" />
+        <slider id="sdy" default="5.0" min="-50.0" max="50.0" label="@string/offsy" />
+        <color id="color" default="#FFFFFFAA" label="@am:string/effect_param_color" alpha="true" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+    </params>
+    <passes>
+        <pass target="downImg" />
+        <pass target="hblur" />
+        <pass />
+    </passes>
+    <shader type="fragment" precision="high"><![CDATA[
+
+        #define MULTISAMPLE 1.0
+
+        vec4 blurInternal(sampler2D texture, vec2 texOffset, vec2 st, float rate)
+        {
+            if(sigma <= 0.0) {
+                if(st.x >= 0.0 && st.x <= 1.0 && st.y >= 0.0 && st.y <= 1.0)
+                    return texture2DCv(texture,st).rgba;
+                else
+                    return vec4(0, 0, 0, 0);
+            }
+            const float PI = 3.14159265;
+            //To get gauss(x) <= gauss(0)*0.1
+            //x>=sigma*sqrt(2*ln10) = 2.14596602...
+            //If you want to get gauss(x) <= gauss(0)*0.01 to get more dedicated result,
+            //x>=2.0*sigma*sqrt(ln10) = 3.03485425....
+            //currently, in my thought, 0.1 of the center pixel will be enough.
+            float adjSigma = sigma * rate;
+            float numBlurPixelsPerSide = (2.14596602 * adjSigma);
+
+
+            highp vec3 incrementalGaussian;
+            incrementalGaussian.x = 1.0 / (sqrt(2.0 * PI) * adjSigma);
+            incrementalGaussian.y = exp(-0.5 / (adjSigma * adjSigma));
+            incrementalGaussian.z = incrementalGaussian.y * incrementalGaussian.y;
+
+            vec4 avgValue = vec4(0.0, 0.0, 0.0, 0.0);
+            highp float coefficientSum = 0.0;
+
+            if(st.x >= 0.0 && st.x <= 1.0 && st.y >= 0.0 && st.y <= 1.0)
+                avgValue += (texture2DCv(texture,st).rgba * incrementalGaussian.x);
+            coefficientSum += incrementalGaussian.x;
+
+            for (float i = 1.0; i <= numBlurPixelsPerSide; i += 2.0) {
+
+                float offset0 = i;
+                float offset1 = i + 1.0;
+
+                incrementalGaussian.xy *= incrementalGaussian.yz;
+                coefficientSum += (2.0 * incrementalGaussian.x);
+                float weight0 = incrementalGaussian.x;
+                incrementalGaussian.xy *= incrementalGaussian.yz;
+                coefficientSum += (2.0 * incrementalGaussian.x);
+                float weight1 = incrementalGaussian.x;
+                float weightL = weight0 + weight1;
+                float offsetL = (offset0*weight0 + offset1*weight1) / weightL;
+                vec2 stL = st - offsetL * texOffset;
+                vec2 stR = st + offsetL * texOffset;
+                if(stL.x >= 0.0 && stL.x <= 1.0 && stL.y >= 0.0 && stL.y <= 1.0)
+                    avgValue += (texture2DCv(texture, stL) * weightL);
+                if(stR.x >= 0.0 && stR.x <= 1.0 && stR.y >= 0.0 && stR.y <= 1.0)
+                    avgValue += (texture2DCv(texture, stR) * weightL);
+            }
+
+            return avgValue / coefficientSum;
+        }
+        void main() {
+            if( acPass == 0 ) {
+                gl_FragColor = texture2DCv(inputImg.texture, acScreenNorm.st);
+            }
+            else if( acPass==1 ) {
+                vec2 texOffset = vec2(1.0/acProjectSize.x, 0.0);
+                gl_FragColor = blurInternal(downImg.texture, texOffset, vec2(acScreenNorm.s - sdx*(texOffset.x/MULTISAMPLE),acScreenNorm.t), 0.5);
+            } else {
+                vec2 texOffset = vec2(0.0, 1.0/acProjectSize.y);
+                vec4 result = blurInternal(hblur.texture, texOffset, vec2(acScreenNorm.s, acScreenNorm.t + sdy*(texOffset.y/MULTISAMPLE)), 0.5);
+                vec4 original = texture2DCv(inputImg.texture,acScreenNorm.st);
+                result = original + color*result.a*alpha*(1.0-original.a);
+                gl_FragColor = result;
+            }
+        }
+]]></shader>
+</effect>

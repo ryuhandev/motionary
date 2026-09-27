@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effect.movealongpath3" name="@am:string/effect_movealongpath_name" desc="@am:string/effect_movealongpath_desc" auto-transform="true" category="transform" tags="transform,kinetic,path,propAdjust,membersOnly,parenting" thumb="thumb/movealongpath.webp">
+
+    <params>
+        <spinner id="progress" default="0.0" min="0.0" max="1.0" type="percent"  step="0.001" label="@am:string/effect_param_progress" ticks="-1.0,0.0,1.0" />
+        <spinner id="angle" default="0.0" min="-1800.0" max="1800.0" label="@am:string/effect_param_orientation" ticks="-90,-45,0,45,90" snap="-90,-45,0,45,90" type="angle" step="1" />
+        <switch id="tangent" default="true" label="@am:string/effect_param_auto_rotate" />
+        <spinner id="inset" default="0.0" min="-500.0" max="500.0" step="1" label="@am:string/effect_param_insetOutset" ticks="0.0" />
+        <point id="offset" default="0.0,0.0" label="@am:string/effect_param_offset" />
+    </params>
+
+    <script external="com.alightcreative.script.movealongpath3" />
+
+</effect>

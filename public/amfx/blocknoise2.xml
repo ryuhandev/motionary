@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.blocknoise2" name="@am:string/effect_blocknoise_name" desc="@am:string/effect_blocknoise_desc" category="procedural" thumb="thumb/blocknoise.webp" tags="random, noise, procedural, auto, glitch, geometric, raster">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="size" default="20" min="1.0" max="999.0" step="0.1" label="@am:string/effect_param_size" />
+        <point id="stretch" min="0.01,0.01" max="10, 10" default="1.0, 1.0" step="0.01" label="@am:string/effect_param_stretch" />
+        <spinner id="amount" default="0.25" min="0.0" max="1.0" step="0.005" label="@am:string/effect_param_strength" />
+        <switch id="mono" default="false" label="@am:string/effect_param_mono" />
+        <switch id="freeze" default="false" label="@am:string/effect_param_freeze" />
+        <switch id="extremes" default="false" label="@am:string/effect_param_extremes" />
+        <point id="position" label="@am:string/effect_param_offset" />
+        <slider id="overshoot" default="2.0" min="0.5" max="2.0" label="@am:string/effect_param_overshoot" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = floor((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter-position+vec2(1234.23,5678.56))/acLayerSize;
+            vec2 actualSize;
+            actualSize = vec2(size*stretch.x,size*stretch.y);
+            actualSize = vec2(150.)/actualSize;
+            st = floor(st*actualSize)/actualSize;
+            float c = overshoot; //clampRange? 1.0 : 2.0;
+            float t = freeze ? 1.0 : acTime;
+            t += seed*3197.3791;
+            if( mono ) {
+                float t = mod(t,2.8)+2.7;
+                float r = rand( st*t );
+                if( extremes ) r = step(0.5,r);
+                r = (r * amount * c) + 1.0 - amount;
+                gl_FragColor = vec4(vec3(r),1.0)*texColor;
+            } else {
+                float tr = mod(t,4.7)+2.87;
+                float tg = mod(t,2.8)+1.55;
+                float tb = mod(t,3.25)+6.271;
+                float r = rand( st*tr );
+                float g = rand( st*tg );
+                float b = rand( st*tb );
+                if( extremes ) r = step(0.5,r);
+                if( extremes ) g = step(0.5,g);
+                if( extremes ) b = step(0.5,b);
+                r = (r * amount * c) + 1.0 - amount;
+                g = (g * amount * c) + 1.0 - amount;
+                b = (b * amount * c) + 1.0 - amount;
+                gl_FragColor = vec4(vec3(r,g,b),1.0)*texColor;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

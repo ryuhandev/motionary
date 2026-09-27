@@ -1,0 +1,339 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.bumpmap" name="@am:string/effect_bumpmap_name" desc="@am:string/effect_bumpmap_desc" category="color" thumb="thumb/bumpmap.webp" tags="lighting,texture, raster, membersOnly" overdraw="true" max-overdraw="0.1" experimental="false" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="comp" srcType="comp" />
+        <texture id="bumpmap_a" srcType="image" src="resource/bumpmap_a.webp" />
+        <texture id="bumpmap_b" srcType="image" src="resource/bumpmap_b.webp" />
+        <selector id="imgNo" default="2" style="dropdown" label="@am:string/effect_param_bumpmap" >
+            <choice label="@am:string/effect_param_layer_luma" value="0" />
+            <choice label="@am:string/effect_param_bg_luma" value="1" />
+            <choice label="@am:string/effect_param_texture_preset_canvas" value="2" />
+            <choice label="@am:string/effect_param_texture_preset_leather" value="3" />
+            <choice label="@am:string/effect_param_texture_preset_mud" value="4" />
+            <choice label="@am:string/effect_param_texture_preset_parchment" value="5" />
+            <choice label="@am:string/effect_param_texture_preset_wood" value="6" />
+            <choice label="@am:string/effect_param_texture_preset_weave" value="7" />
+        </selector>
+        <selector id="texNo" default="1" style="dropdown" label="@am:string/effect_param_fill" >
+            <choice label="@am:string/effect_param_layer" value="1" />
+            <choice label="@am:string/effect_param_background" value="0" />
+            <choice label="@am:string/effect_param_color" value="2" />
+        </selector>
+        <color id="texColor" default="#FF88CCEE" label="@am:string/effect_param_fillColor" alpha="true" />
+        <switch id="mirror" default="false" label="@am:string/effect_param_mirror" />
+        <spinner id="texScale" default="1" min="0.001" max="10.0" step="0.01" label="@am:string/effect_param_scale" ticks="1" />
+        <spinner id="texStretch" default="0" min="-10.0" max="10.0" step="0.01" label="@am:string/effect_param_stretch" ticks="0" />
+        <spinner id="texAngle" default="0.0" min="-3600" max="3600" label="@am:string/effect_param_angle" step="0.1" ticks="0" type="angle" />
+        <spinner id="texCrop" default="1" min="0.01" max="2.0" label="@am:string/effect_param_crop" step="0.001" ticks="1.0" />
+        <!--        <spinner id="texTwirl" default="0.0" min="-3600" max="3600" label="@am:string/effect_param_twirl" step="0.1" ticks="0" type="angle" />-->
+        <point id="texOffset" label="@am:string/effect_param_offset" />
+        <section text="@am:string/effect_section_lightsource" />
+        <selector id="shadingType" default="1" style="dropdown" label="@am:string/effect_param_shading" >
+<!--            <choice label="@am:string/effect_param_shading_flat" value="0" />-->
+            <choice label="@am:string/effect_param_shading_pointlight" value="1" />
+            <choice label="@am:string/effect_param_shading_dirlight" value="2" />
+        </selector>
+        <spinner id="lightIntensity" default="1.0" min="0" max="2" step="0.001" label="@am:string/effect_param_intensity" type="percent" />
+        <spinner id="shine" default="0.8" min="0.0" max="1.0" label="@am:string/effect_param_shine" step="0.01" ticks="0.5" />
+        <spinner id="spec" default="30.0" min="1.0" max="150.0" label="@am:string/effect_param_specularity" step="0.5" ticks="30.0" />
+        <spinner id="ambient" default="0.6" min="0.0" max="1.0" label="@am:string/effect_param_ambient" step="0.01" />
+        <color id="lightColor" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" />
+        <color id="shineColor" default="#FFFFFFFF" label="@am:string/effect_param_shine" alpha="false" />
+        <point id="lightDir" default="75,-75" label="@am:string/effect_param_direction" />
+        <spinner id="lightDepth" default="600" min="0" max="1000" label="@am:string/effect_param_elevation" step="0.5" ticks="1,100"  />
+
+        <section text="@am:string/effect_section_surface" />
+        <spinner id="height" default="0.1" min="-1." max="1." step="0.01" label="@am:string/effect_param_height" ticks="0., -0.5, 0.5" type="percent" />
+        <spinner id="smoothing" default="1." min="1." max="10." step="0.01" label="@am:string/effect_param_smoothing" />
+
+        <!--        <section text="Masking" />-->
+        <!--        <switch id="mask" deafult="true" label="@am:string/effect_param_mask" />-->
+
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        float lighting(vec3 p, vec3 n) {
+            vec3 lightPos = vec3(lightDir.x/2.0, -lightDir.y/2.0, lightDepth*2.0) / 1000.0;
+            vec3 l = normalize(lightPos-p);
+            return dot(n,l);
+        }
+
+        float directionalLighting(vec3 p, vec3 n) {
+            vec3 lightPos = vec3(lightDir.x/2.0, -lightDir.y/2.0, lightDepth*2.0) / 1000.0;
+            vec3 l = normalize(lightPos);
+            return dot(n,l);
+        }
+
+        vec4 applyShading(vec4 texColor, vec3 p, vec3 n, float d ) {
+            vec4 result = vec4(0.);
+            float a = smoothstep(30.0,9.,d);
+            a *= smoothstep(0.3,0.2,n.z);
+            if( shadingType == 0 ) {                // Flat
+                result = texColor * a;
+            } else if( shadingType == 1 ) {         // Point Light
+                float l = lighting(p,n);
+                vec3 tc = texColor.rgb;
+                vec3 surface = tc * ambient + tc * lightColor.rgb * l * (1.-ambient);
+                surface *= lightIntensity;
+                float s = abs(pow(l,spec));
+                surface = mix(surface*(1.-shine*0.1),shineColor.rgb,shine*s);
+                result = vec4(surface, texColor.a);// * a;
+            } else if( shadingType == 2 ) {         // Directonal Light
+                float l = directionalLighting(p,n);
+                vec3 tc = texColor.rgb;
+                vec3 surface = tc * ambient + tc * lightColor.rgb * l * (1.-ambient);
+                surface *= lightIntensity;
+                float s = abs(pow(l,spec));
+                surface = mix(surface*(1.-shine*0.1),shineColor.rgb,shine*s);
+                result = vec4(surface, texColor.a);// * a;
+            } else if( shadingType == 3 ) {         // Depth Map
+                result = vec4( (n/2.)+0.5, 1. ) * a;
+            } else if( shadingType == 4 ) {         // Normal Map
+                result = vec4( (n/2.)+0.5, 1. ) * a;
+            } else if( shadingType == 5 ) {         // Normal * Depth
+                result = vec4( (n/2.)+0.5, 1. ) * a;
+            }
+
+            return result;
+        }
+
+        vec2 mapTexture( vec2 texCoord, float rate ) {
+            float texRad = texAngle * 0.0174533;
+            float texCos = cos(texRad);
+            float texSin = sin(texRad);
+            mat2 texRot = mat2( texCos, -texSin, texSin, texCos );
+
+            float texTwirl = 0.0;
+            //float texCrop = 1.0;
+
+            float texTwirlRad = texTwirl * 0.0174533;
+            float texTwirlCos = cos(texTwirlRad);
+            float texTwirlSin = sin(texTwirlRad);
+            mat2 texTwirlRot = mat2( texTwirlCos, -texTwirlSin, texTwirlSin, texTwirlCos );
+
+            vec2 texScaleVec = vec2(texScale,texScale);
+
+            if( texStretch > 0.0 ) {
+                texScaleVec.x *= 1.0 + texStretch;
+            } else if( texStretch < 0.0 ) {
+                texScaleVec.y *= 1.0 - texStretch;
+            }
+
+            texCoord -= texOffset * vec2(1.0,-1.0) / 1000.0;
+            texCoord -= 0.5;
+            texCoord.x *= rate;
+            texCoord *= texRot;
+            texCoord.x /= rate;
+            texCoord /= texScaleVec;
+            texCoord += 0.5;
+            //if( mirror ) {
+            //    texCoord = 1.0 - texCoord;
+            //}
+
+            texCoord -= 0.5;
+            texCoord = texCoord * (1.-5./acScreenSize);
+            //texCoord *= texCrop;
+            texCoord *= texTwirlRot;
+            texCoord += 0.5;
+            return texCoord;
+        }
+
+        void main() {
+
+            vec2 st = acScreenNorm;
+            vec2 fragSize;
+            float curHeight = 0.0;
+            float left = 0.0;
+            float right = 0.0;
+            float top = 0.0;
+            float bottom = 0.0;
+            vec2 gradient = vec2(0,0);
+
+            if(imgNo == 0) {
+                //st calc----------------------------------------------------
+                st = mapTexture(st, acScreenSize.x / acScreenSize.y);
+                st = (vec4(st.xy, 0, 1)*acScreenToLayer).xy;
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                st = mod(st, 1.);
+                st = (vec4(st.xy, 0,1)*acLayerToScreen).xy;
+                st -= acLayerCenterNorm;
+                st *= texCrop;
+                st += acLayerCenterNorm;
+                //----------------------------------------------------st calc
+                fragSize = vec2(1.)/getTexSize(inputImg.size) * smoothing;
+                curHeight = length(texture2DCv(inputImg.texture, st).xyz*luminanceWeighting);
+                left = length(texture2DCv(inputImg.texture, vec2(st.x - fragSize.x, st.y) ).xyz*luminanceWeighting);
+                right = length(texture2DCv(inputImg.texture, vec2(st.x + fragSize.x, st.y) ).xyz*luminanceWeighting);
+                top = length(texture2DCv(inputImg.texture, vec2(st.x, st.y + fragSize.y) ).xyz*luminanceWeighting);
+                bottom = length(texture2DCv(inputImg.texture, vec2(st.x, st.y - fragSize.y) ).xyz*luminanceWeighting);
+            } else if(imgNo == 1) {
+                //st calc----------------------------------------------------
+                st = mapTexture(st, acScreenSize.x / acScreenSize.y);
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                st = mod(st, 1.);
+                st -= acLayerCenterNorm;
+                st *= texCrop;
+                st += acLayerCenterNorm;
+                //----------------------------------------------------st calc
+                fragSize = vec2(1.)/getTexSize(comp.size) * smoothing;
+                curHeight = length(texture2DCv(comp.texture, st).xyz*luminanceWeighting);
+                left = length(texture2DCv(comp.texture, vec2(st.x - fragSize.x, st.y) ).xyz*luminanceWeighting);
+                right = length(texture2DCv(comp.texture, vec2(st.x + fragSize.x, st.y) ).xyz*luminanceWeighting);
+                top = length(texture2DCv(comp.texture, vec2(st.x, st.y + fragSize.y) ).xyz*luminanceWeighting);
+                bottom = length(texture2DCv(comp.texture, vec2(st.x, st.y - fragSize.y) ).xyz*luminanceWeighting);
+            } else if(imgNo == 2) {//canvas - bumpmap_b.g
+                st = (vec4(st.xy, 0, 1)*acScreenToLayer).xy;
+                st.x *= (acLayerSize.x / bumpmap_b.size.x);
+                st.y *= (acLayerSize.y / bumpmap_b.size.y);
+                st = mapTexture(st, 1.0);
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                fragSize = vec2(1.)/bumpmap_b.size * smoothing;
+                curHeight = texture2D(bumpmap_b.texture, st).g;
+                left = texture2D(bumpmap_b.texture, vec2(st.x - fragSize.x, st.y)).g;
+                right = texture2D(bumpmap_b.texture, vec2(st.x + fragSize.x, st.y)).g;
+                top = texture2D(bumpmap_b.texture, vec2(st.x, st.y + fragSize.y)).g;
+                bottom = texture2D(bumpmap_b.texture, vec2(st.x, st.y - fragSize.y)).g;
+            } else if(imgNo == 3) {//bumpmap_b - bumpmap_b.r
+                st = (vec4(st.xy, 0, 1)*acScreenToLayer).xy;
+                st.x *= (acLayerSize.x / bumpmap_b.size.x);
+                st.y *= (acLayerSize.y / bumpmap_b.size.y);
+                st = mapTexture(st, 1.0);
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                fragSize = vec2(1.)/bumpmap_b.size * smoothing;
+                curHeight = texture2D(bumpmap_b.texture, st).r;
+                left = texture2D(bumpmap_b.texture, vec2(st.x - fragSize.x, st.y) ).r;
+                right = texture2D(bumpmap_b.texture, vec2(st.x + fragSize.x, st.y) ).r;
+                top = texture2D(bumpmap_b.texture, vec2(st.x, st.y + fragSize.y) ).r;
+                bottom = texture2D(bumpmap_b.texture, vec2(st.x, st.y - fragSize.y) ).r;
+            } else if(imgNo == 4) {//mud - bumpmap_a.b
+                st = (vec4(st.xy, 0, 1)*acScreenToLayer).xy;
+                st.x *= (acLayerSize.x / bumpmap_a.size.x);
+                st.y *= (acLayerSize.y / bumpmap_a.size.y);
+                st = mapTexture(st, 1.0);
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                fragSize = vec2(1.)/bumpmap_a.size * smoothing;
+                curHeight = texture2D(bumpmap_a.texture, st).b;
+                left = texture2D(bumpmap_a.texture, vec2(st.x - fragSize.x, st.y) ).b;
+                right = texture2D(bumpmap_a.texture, vec2(st.x + fragSize.x, st.y) ).b;
+                top = texture2D(bumpmap_a.texture, vec2(st.x, st.y + fragSize.y) ).b;
+                bottom = texture2D(bumpmap_a.texture, vec2(st.x, st.y - fragSize.y) ).b;
+            } else if(imgNo == 5) { //parchment - bumpmap_a.g
+                st = (vec4(st.xy, 0, 1)*acScreenToLayer).xy;
+                st.x *= (acLayerSize.x / bumpmap_a.size.x);
+                st.y *= (acLayerSize.y / bumpmap_a.size.y);
+                st = mapTexture(st, 1.0);
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                fragSize = vec2(1.)/bumpmap_a.size * smoothing;
+                curHeight = texture2D(bumpmap_a.texture, st).g;
+                left = texture2D(bumpmap_a.texture, vec2(st.x - fragSize.x, st.y) ).g;
+                right = texture2D(bumpmap_a.texture, vec2(st.x + fragSize.x, st.y) ).g;
+                top = texture2D(bumpmap_a.texture, vec2(st.x, st.y + fragSize.y) ).g;
+                bottom = texture2D(bumpmap_a.texture, vec2(st.x, st.y - fragSize.y) ).g;
+            } else if(imgNo == 6) {//wood - bumpmap_a.r
+                st = (vec4(st.xy, 0, 1)*acScreenToLayer).xy;
+                st.x *= (acLayerSize.x / bumpmap_a.size.x);
+                st.y *= (acLayerSize.y / bumpmap_a.size.y);
+                st = mapTexture(st, 1.0);
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                fragSize = vec2(1.)/bumpmap_a.size * smoothing;
+                curHeight = texture2D(bumpmap_a.texture, st).r;
+                left = texture2D(bumpmap_a.texture, vec2(st.x - fragSize.x, st.y) ).r;
+                right = texture2D(bumpmap_a.texture, vec2(st.x + fragSize.x, st.y) ).r;
+                top = texture2D(bumpmap_a.texture, vec2(st.x, st.y + fragSize.y) ).r;
+                bottom = texture2D(bumpmap_a.texture, vec2(st.x, st.y - fragSize.y) ).r;
+            }
+            else if(imgNo == 7) { // weave - bumpmap_b.b
+                st = (vec4(st.xy, 0, 1)*acScreenToLayer).xy;
+                st.x *= (acLayerSize.x / bumpmap_b.size.x);
+                st.y *= (acLayerSize.y / bumpmap_b.size.y);
+                st = mapTexture(st, 1.0);
+                if( mirror ) {
+                    st = abs(mod(st,2.0)-1.0);
+                } else {
+                    st = mod(st, 1.);
+                }
+                fragSize = vec2(1.)/bumpmap_b.size * smoothing;
+                curHeight = texture2D(bumpmap_b.texture, st).b;
+                left = texture2D(bumpmap_b.texture, vec2(st.x - fragSize.x, st.y) ).b;
+                right = texture2D(bumpmap_b.texture, vec2(st.x + fragSize.x, st.y) ).b;
+                top = texture2D(bumpmap_b.texture, vec2(st.x, st.y + fragSize.y) ).b;
+                bottom = texture2D(bumpmap_b.texture, vec2(st.x, st.y - fragSize.y) ).b;
+            }
+            gradient = normalize(vec2((right - left) / (2.*fragSize.x), (top - bottom) / (2.*fragSize.y)));
+
+            float adjHeight = height / 10.0;
+            curHeight *= adjHeight;
+            left *= adjHeight;
+            right *= adjHeight;
+            top *= adjHeight;
+            bottom *= adjHeight;
+
+            vec3 va = normalize(vec3(fragSize.x*2.0,0.0,right-left));
+            vec3 vb = normalize(vec3(0.0,fragSize.y*2.0,top-bottom));
+            vec3 n = normalize(cross(va,vb));
+
+            vec4 baseColor;
+            if(texNo == 0) {
+                baseColor = texture2DCv(comp.texture, acScreenNorm);
+            } else if(texNo == 1) {
+                baseColor = texture2DCv(inputImg.texture, acScreenNorm);
+            } else {
+                baseColor = texColor;
+            }
+
+            baseColor = applyShading(baseColor,vec3(acScreenNorm.x - 0.5, acScreenNorm.y - 0.5, curHeight), n, 1.0);
+            float alpha = texture2DCv(inputImg.texture, acScreenNorm).a;
+            vec4 result = baseColor*alpha;
+            if(acShowGuides)
+            {
+                vec2 ld = acScreenNorm - (acLayerCenterNorm+vec2(lightDir.x/2.0, -lightDir.y/2.0)/1000.0);
+                ld.x *= acScreenSize.x / acScreenSize.y;
+                vec4 lightColor= vec4(0.,0.,0.,1.);
+                float lightSize = 0.02;
+                float lightIntensity = 0.5;
+                result = mix(result,lightColor,lightIntensity * smoothstep(0., .05, max(0.,lightSize-length(ld))*(1.0/lightSize)));
+                lightColor= vec4(1.,1.,1.,1.);
+                lightSize = 0.01;
+                lightIntensity = 1.0;
+                result = mix(result,lightColor,lightIntensity * smoothstep(0., .05, max(0.,lightSize-length(ld))*(1.0/lightSize)));
+            }
+            gl_FragColor = result;
+
+        }
+
+    ]]></shader>
+
+</effect>

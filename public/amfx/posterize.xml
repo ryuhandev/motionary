@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.posterize" name="@am:string/effect_posterize_name" desc="@am:string/effect_posterize_desc" category="color" tags="color,retro,pop,raster" thumb="thumb/posterize.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="stepCount" default="10.0" min="2.0" max="255.0" step="1" label="@am:string/effect_param_steps" />
+        <spinner id="offset" default="0" min="-1" max="1" step="0.001" label="@am:string/effect_param_offset" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            float actualOffset = offset + 0.05;
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            texColor.rgb *= stepCount;
+            texColor.rgb += actualOffset;
+            texColor.rgb = floor(texColor.rgb);
+            texColor.rgb -= actualOffset;
+            texColor.rgb /= stepCount;
+            gl_FragColor = texColor;
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.swirl3" name="@am:string/effect_swirl_name" desc="@am:string/effect_swirl_desc" category="distort" tags="distort,fun,raster" thumb="thumb/swirl.webp" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Swirl</string>-->
+            <!--<string name="desc">A vortex-like deformation. Strength, radius, and center can be adjusted.</string>-->
+            <!--<string name="center">Center</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="strength" default="0.1" min="-0.5" max="0.5" label="@am:string/effect_param_strength" step="0.001" />
+        <spinner id="radius" default="0.3" min="0.0" max="0.8" label="@am:string/effect_param_radius" step="0.01" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+
+            // -- layer coordinates boilerplate --
+            // This get 0.0~1.0 coordinates inside layer (if layer is not square, one axis will be 1.0 and one will be larger)
+            //vec2 st = (acScreenNorm.xy*acScreenSize-acLayerCenter)/acLayerSize;
+            //vec2 ctr = acLayerCenter/acScreenSize;
+            //vec2 st = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/acLayerSize;
+            //st.y*=acLayerSize.y/acLayerSize.x;
+            // -- end boilerplate --
+
+            float Radius = radius;
+            float T = strength;
+
+            vec2 UV = acScreenNorm; //-acLayerCenterNorm; //acScreenNorm.xy;
+
+            vec2 CENTER = centerPoint/1000. * vec2(-1.,1.);
+
+            //UV /= 2.0;
+
+            UV -= acLayerCenterNorm-CENTER;
+
+            UV.y *= (acScreenSize.y/acScreenSize.x);
+
+            float Dist = length(UV);
+
+            if ( Dist < Radius )
+            {
+                float Percent = (Radius - Dist) / Radius;
+                float A = ( T <= 0.5 ) ? mix( 0.0, 1.0, T/0.5 ) : mix( 1.0, 0.0, (T-0.5)/0.5 );
+                float Theta = Percent * Percent * A * 8.0 * 3.14159;
+                float S = sin( Theta );
+                float C = cos( Theta );
+                UV = vec2( dot(UV, vec2(C, -S)), dot(UV, vec2(S, C)) );
+            }
+
+            UV.y /= (acScreenSize.y/acScreenSize.x);
+
+            UV += acLayerCenterNorm-CENTER;
+
+            vec2 p = (acLayerCenterNorm-acScreenNorm)/acLayerSizeNorm;
+            gl_FragColor = texture2DCv(inputImg.texture,UV);
+
+        }
+
+    ]]></shader>
+
+</effect>

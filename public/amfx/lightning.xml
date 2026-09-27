@@ -1,0 +1,200 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.lightning" name="@am:string/effect_lightning_name" desc="@am:string/effect_lightning_desc" category="procedural" tags="procedural,random,neon,raster,membersOnly" thumb="thumb/lightning.webp" experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="start" default="-400,-400" label="@am:string/effect_param_point_1" />
+        <point id="end" default="400,400" label="@am:string/effect_param_point_2" />
+        <spinner id="evolution" default="0.0" min="-999" max="999" label="@am:string/effect_param_evolution" step="0.01" snap="1" ticks="1" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+        <color id="color1" default="#FF0000FF" label="@am:string/effect_param_color1" alpha="true" />
+        <color id="color2" default="#FFFF0000" label="@am:string/effect_param_color2" alpha="true" />
+        <color id="color3" default="#FF00FF00" label="@am:string/effect_param_color3" alpha="true" />
+        <spinner id="limit" default="0.5" min="-2.0" max="2.0" step="0.01" label="@am:string/effect_param_threshold" />
+        <spinner id="intensity" default="1.0" min="0.0" max="20.0" step="0.01" label="@am:string/effect_param_intensity" />
+        <spinner id="glow" default="1.0" min="0.0" max="20.0" step="0.001" label="@am:string/effect_param_glow" />
+        <spinner id="core" default="1.0" min="0.0" max="20.0" step="0.001" label="@am:string/effect_param_core" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+        <slider id="count" default="6" min="1" max="9" label="@am:string/effect_param_count" step="1" type="integer" ticks="1,2,3,4,5,6,7,8,9" />
+        <slider id="octaves" default="3" min="1" max="5" label="@am:string/effect_param_octaves" step="1" type="integer" ticks="1,2,3,4,5" />
+        <switch id="smooth" label="@am:string/effect_param_smooth" default="false" />
+
+        <selector id="blendMode" style="dropdown" default="2" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_overlay" value="5" />
+            <!--<choice label="@am:string/effect_param_overflow" value="3" />-->
+            <choice label="@am:string/effect_param_punchout" value="4" />
+            <choice label="@am:string/effect_param_sourceonly" value="6" />
+        </selector>
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+
+        float sdLine( in vec2 p, in vec2 a, in vec2 b )
+        {
+            vec2 pa = p-a, ba = b-a;
+            float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
+            return length( pa - ba*h );
+        }
+
+        vec2 projectAndClamp(vec2 a, vec2 b) {
+            return clamp(dot(a,b)/dot(b,b),0.0,1.0) * b;
+        }
+
+        // 2D Random
+        float random (vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))
+                         * 43758.5453123);
+        }
+
+        // 2D Noise based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            // Interpolation
+            vec2 u;
+            if(smooth){
+                // Cubic Hermine Curve.  Same as SmoothStep()
+                //u = f*f*(3.0-2.0*f);
+                u = smoothstep(0., 1., f);
+            } else {
+                // Jagged noise for lightning
+                u = f;
+            }
+
+            // Mix 4 coorners percentages
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+        //float xnoise(vec2 st) {
+        //    float n = noise(st);
+        //    n = abs(n);
+        //    n = 0.9-n;
+        //    n = n*n;
+        //    n = mod(n,1.) * 2. - 1.;
+        //    return n;
+        //}
+
+        float fractNoise (vec2 st, int octaves) {
+            st *= 4.;
+            float result = noise(st);
+            if ( octaves >= 2 )
+                result += noise(st*2.)*0.5;
+            if ( octaves >= 3 )
+                result += noise(st*4.)*0.3;
+            if ( octaves >= 4 )
+                result += noise(st*8.)*0.2;
+            if ( octaves >= 5 )
+                result += noise(st*16.)*0.1;
+            return result;
+        }
+
+
+        vec2 l2s( vec2 v, mat4 acLTS ) {
+            return (vec4(v,0.,1.)*acLTS).xy;
+        }
+
+        vec3 lightning( vec2 st, vec2 a, vec2 b, float scale, float seed, float width, float limit ) {
+
+            vec2 ab = b - a;
+            vec2 n = normalize(ab).yx;
+            n.y *= -1.;
+
+            vec2 p = projectAndClamp(st-a, ab)+a;
+            float t = distance(p,a)/distance(b,a);
+            float f = smoothstep(0.,0.5,0.5-abs(t-0.5));
+
+            st += n*(fractNoise(vec2(t,seed),int(octaves))-1.)* scale * 0.3 * length(ab)*f;
+
+            //float c = sdLine(st,a,b);
+            float c = length(st - p);
+            float l = smoothstep(clamp(limit,0.,0.5)-0.5, .5, abs(0.5-t));
+            float xl = clamp(limit-0.5, 0., 1.);
+            l = l * (1. - xl) + xl;
+            return vec3(smoothstep(0.006*width*core,0.,c),smoothstep(0.034*width,-0.032,c),smoothstep(0.034*width*glow,0.,c)) * l;
+        }
+
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+
+            vec3 lcolor = vec3(0.);
+
+            float adjseed = mod(258.35 + 42.78*seed,138.971);
+            float w = 0.1;
+            float slimit = 0.2;
+
+            vec2 a = start / 1000.;
+            vec2 b = end / 1000.;
+
+            a.y *= -1.;
+            b.y *= -1.;
+
+            int icount = int(count);
+            for( int i=0; i<icount; i++ ) {
+                w += 0.2;
+                slimit += 7.4;
+                adjseed = mod(adjseed * sin(adjseed+1.2)+4.3,45.32);
+                lcolor += lightning(st,a,b, 1., evolution+adjseed, pow((noise(vec2(w,evolution))+1.)/2.,1.584), pow((noise(vec2(slimit,evolution))*limit+1.)/2.584,1.584)) * intensity;
+            }
+
+            //if( tint.r >= tint.g && tint.g >= tint.b ) {
+            //} else if( tint.r >= tint.b && tint.b >= tint.g ) {
+            //}
+
+            //vec4 color = vec4(lcolor,max(max(lcolor.r,lcolor.g),lcolor.b));
+
+            vec4 color = ((color1 * lcolor.r) + (color2 * lcolor.g) + (color3 * lcolor.b)) / 3.;  // max(1., lcolor.r + lcolor.g + lcolor.b);
+
+            color *= alpha;
+
+            vec4 result;
+            if( blendMode==0 ) {                // normal
+                color *= texColor.a;
+                result = color + (texColor*(1.0-color.a));
+            } else if( blendMode==1 ) {         // multiply
+                vec4 c = color + vec4(1.)*(1.-color.a);
+                result = vec4((texColor.rgb/texColor.a)*c.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {         // screen
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-color.rgb)),1.0) * texColor.a;
+            //} else if( blendMode==3 ) {         // overflow
+            //    result = color;
+            } else if( blendMode==4 ) {         // punchout
+                result = texColor * (1.0-color.a);
+            } else if( blendMode==6 ) {         // sourceonly
+                result = color;
+            } else if( blendMode==5 ) {         // overlay
+                vec3 top = color.rgb / color.a;
+                vec3 bot = texColor.rgb / texColor.a;
+                vec3 t = smoothstep(0.5,0.5,bot);
+                vec3 r3 =
+                        t * (1. - (1.-2.*(bot-0.5)) * (1.-top)) +
+                        (1.-t) * ((2.*bot) * top);
+                vec4 r4 = vec4(r3, 1.0) * color.a * texColor.a;
+                result = texColor * (1.-r4.a) + r4;
+            }
+
+            gl_FragColor = result;
+
+        }
+
+    ]]></shader>
+
+</effect>

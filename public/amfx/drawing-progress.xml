@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.drawing.progress" name="@am:string/effect_drawingprogress_name" desc="@am:string/effect_drawingprogress_desc" category="drawing" tags="drawing,stroke,line,progress,vector" thumb="thumb/drawprog2.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Drawing Progress</string>-->
+            <!--<string name="desc">Drawing Progress</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="start" default="0.0" min="0.0" max="100.0" step="0.1" label="@am:string/effect_param_start" />
+        <spinner id="end" default="100.0" min="0.0" max="100.0" step="0.1" label="@am:string/effect_param_end" />
+    </params>
+
+</effect>

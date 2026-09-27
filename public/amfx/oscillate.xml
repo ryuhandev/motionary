@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.oscillate" name="@am:string/effect_oscillate_name" desc="@am:string/effect_oscillate_desc" auto-transform="true" category="transform" tags="transform,auto,essentials,shake,propAdjust" thumb="thumb/oscillate.webp" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Oscillate</string>-->
+            <!--<string name="desc">Moves the layer position back and forth repeatedly. Direction, frequency, and distance can be adjusted.</string>-->
+            <!--<string name="angle">Angle</string>-->
+            <!--<string name="freq">Frequency</string>-->
+            <!--<string name="mag">Magnitude</string>-->
+            <!--<string name="wave">Wave</string>-->
+            <!--<string name="sine">Sine</string>-->
+            <!--<string name="triangle">Triangle</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="angle" default="45" min="0.0" max="180.0" label="@am:string/effect_param_angle" type="angle" />
+        <spinner id="freq" default="2.0" min="0.1" max="16.0" label="@am:string/effect_param_freq" />
+        <slider id="mag" default="25" min="1" max="500" label="@am:string/effect_param_mag" />
+        <selector id="type" default="0" style="radio" label="@am:string/effect_param_wave" >
+            <choice label="@am:string/effect_param_sine" value="0" />
+            <choice label="@am:string/effect_param_triangle" value="1" />
+        </selector>
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let t = env.time;
+            var a = p.angle * (Math.PI / 180);
+            var dx = Math.sin(a);
+            var dy = Math.cos(a);
+            let m
+            if( p.type == 0 ) {
+                m = Math.sin(t * env.duration * p.freq * 3.14159)
+            } else {
+                m = AM.triangle(t * env.duration * p.freq / 2.0)
+            }
+            dx *= p.mag * m;
+            dy *= p.mag * m;
+            el.transform.location.x += dx;
+            el.transform.location.y += dy;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

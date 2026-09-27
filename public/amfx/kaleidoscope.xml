@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.kaleidoscope" name="@am:string/effect_kaleidoscope_name" desc="@am:string/effect_kaleidoscope_desc" category="distort" tags="distort,fun,raster" thumb="thumb/kaleid2.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="rcount" default="6" min="1" max="24" label="@am:string/effect_param_reflections" step="1" type="integer" ticks="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="offsetAngle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <switch id="mirror" label="@am:string/effect_param_mirror" default="true" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            float segmentAngle = 360.0 / rcount;
+            float rad = segmentAngle * 0.0174533;
+
+            float offsetRad = offsetAngle * 0.0174533;
+
+            vec2 origin = (centerPoint*vec2(1.0,-1.0))/1000.0 + 0.5;
+            vec2 pos = acLayerNorm-origin;
+            pos.x *= acLayerSize.x/acLayerSize.y;
+            float r = length(pos);
+            float a = atan(pos.y,pos.x);
+
+            float sampleAngle = mod(a,rad);
+            if( mirror ) {
+                sampleAngle = abs(sampleAngle-rad/2.0);
+            }
+            sampleAngle += offsetRad;
+
+            mat2 rmat = mat2(cos(sampleAngle),-sin(sampleAngle),sin(sampleAngle),cos(sampleAngle));
+
+            vec2 sampleCoord = vec2(r,0.0) * rmat;
+
+            sampleCoord.x /= acLayerSize.x/acLayerSize.y;
+
+            sampleCoord += origin;
+
+            sampleCoord = (vec4(sampleCoord,0.0,1.0) * acLayerToScreen).xy;
+
+            gl_FragColor = texture2DCv(inputImg.texture,sampleCoord);
+        }
+
+    ]]></shader>
+
+</effect>

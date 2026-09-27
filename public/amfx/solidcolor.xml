@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.solidcolor" name="@am:string/effect_solidcolor_name" desc="@am:string/effect_solidcolor_desc" category="color" tags="color,raster" thumb="thumb/solidcolor.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="true" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+        <selector id="blendMode" style="dropdown" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*color.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-color.rgb)),1.0) * texColor.a;
+            } else {
+                result = vec4(color.rgb,1.0)*texColor.a;
+            }
+            gl_FragColor = mix(texColor,result,alpha);
+        }
+
+    ]]></shader>
+
+</effect>

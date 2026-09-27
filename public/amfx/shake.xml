@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.shake" name="@am:string/effect_shake_name" desc="@am:string/effect_shake_desc" auto-transform="true" category="transform" tags="transform,auto,shake,propAdjust" deprecated="true" thumb="thumb/shake.webp">
+
+    <params>
+        <spinner id="mag" min="0" max="2000" step="1" default="50" label="@am:string/effect_param_mag" />
+        <spinner id="speed" min="0" max="2000" step="0.01" default="1" label="@am:string/effect_param_speed" />
+        <spinner id="evolution" min="0" max="2000" step="0.01" default="0" label="@am:string/effect_param_evolution" />
+        <spinner id="seed" min="0" max="5" step="0.01" default="0" label="@am:string/effect_param_seed" />
+        <spinner id="angle" default="45.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <spinner id="slack" min="0" max="1" step="0.01" default="0.25" label="@am:string/effect_param_slack" type="percent" />
+
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let absTimeSeconds = env.frame/env.fps;
+            let evolution = p.evolution + (absTimeSeconds * p.speed) - p.speed;
+
+            var a = p.angle * (Math.PI / 180);
+            var s = Math.sin(a);
+            var c = Math.cos(a);
+
+
+            let dx = AM.simplexNoise(el.transform.location.x + p.seed*54623.245, el.transform.location.y, evolution + p.seed*49235.319798);
+            let dy = AM.simplexNoise(el.transform.location.x, el.transform.location.y + p.seed*8723.5647, evolution+7468.329 + p.seed*19337.940385);
+            dx *= p.mag;
+            dy *= p.mag * p.slack;
+
+            let rx = dx * c - dy * s;
+            let ry = dx * s + dy * c;
+
+            el.transform.location.x += rx;
+            el.transform.location.y += ry;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

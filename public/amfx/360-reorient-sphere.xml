@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.360-reorient-sphere"
+    name="@am:string/effect_360reorientsphere_name"
+    desc="@am:string/effect_360reorientsphere_desc"
+    category="distort"
+    tags="vr, 3d, warp, 360, membersOnly, raster, distortion"
+    thumb="thumb/360reorientsphere.webp"
+    overdraw="false"
+    experimental="false"
+    deprecated="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <orient id="orient" label="@am:string/effect_param_orientation" invert="true" />
+        <xyz id="rotate" label="@am:string/effect_param_rotation" type="rotate" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        mat4 rotationAxisAngle( vec3 v, float angle )
+        {
+            float s = sin( angle );
+            float c = cos( angle );
+            float ic = 1.0 - c;
+
+            return mat4( v.x*v.x*ic + c,     v.y*v.x*ic - s*v.z, v.z*v.x*ic + s*v.y, 0.0,
+                         v.x*v.y*ic + s*v.z, v.y*v.y*ic + c,     v.z*v.y*ic - s*v.x, 0.0,
+                         v.x*v.z*ic - s*v.y, v.y*v.z*ic + s*v.x, v.z*v.z*ic + c,     0.0,
+                         0.0,                0.0,                0.0,                1.0 );
+        }
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        #define M_PI 3.14159265358979323846
+
+        void main() {
+
+            vec2 st = acLayerNorm;
+            float lon = st.x * M_PI * 2.0;
+            float lat = asin((st.y - 0.5) * 2.0);
+            vec3 xyz = vec3(cos(lon)*cos(lat), sin(lon)*cos(lat), sin(lat));
+
+            vec3 r = rotate * 0.0174533;
+            mat4 rx = rotationAxisAngle(vec3(1.,0.,0.),r.x);
+            mat4 ry = rotationAxisAngle(vec3(0.,1.,0.),r.y);
+            mat4 rz = rotationAxisAngle(vec3(0.,0.,1.),r.z);
+
+            xyz = (vec4(xyz,0.) * orient * rz * rx * ry).xyz;
+            lat = asin(xyz.z);
+            lon = atan(xyz.y, xyz.x);
+            if(lon < 0.0)
+                lon += (2.0 * M_PI);
+
+            vec2 conv_uv = vec2(lon/(M_PI*2.0), sin(lat)/2.0 + 0.5);
+            float inside = step(0.,st.x) * step(st.x,1.) * step(0.,st.y) * step(st.y,1.);
+            gl_FragColor = texture2DCv(inputImg.texture,l2s(conv_uv)) * inside;
+        }
+
+    ]]></shader>
+
+</effect>

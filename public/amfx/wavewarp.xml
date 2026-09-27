@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.wavewarp" name="@string/name" desc="@string/desc" category="distort" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Wave Warp</string>
+            <string name="desc">Wave Warp shader</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="yspace" default="20.0" min="1.0" max="100.0" label="Y Spacing" />
+        <slider id="yamp" default="10.0" min="0.0" max="100.0" label="Y Amplitude" />
+        <slider id="xspace" default="20.0" min="1.0" max="100.0" label="X Spacing" />
+        <slider id="xamp" default="10.0" min="0.0" max="100.0" label="X Amplitude" />
+        <slider id="phase" default="0" min="0" max="1000.0" label="Phase" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+
+            vec2 st = acScreenNorm.xy*acScreenSize;
+            vec2 offs = vec2(
+                sin((st.y+phase)/yspace)*yamp,
+                sin((st.x+phase)/xspace)*xamp
+            );
+            gl_FragColor = texture2DCv(inputImg.texture,(st+offs)/acScreenSize);
+
+        }
+
+    ]]></shader>
+
+</effect>

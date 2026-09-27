@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.spin" name="@am:string/effect_spin_name" desc="@am:string/effect_spin_desc" auto-transform="true" category="transform" tags="trasform,auto,propAdjust,parenting,camera" thumb="thumb/spin.webp">
+
+    <params>
+        <spinner id="rpm" default="60.0" min="-3600.0" max="3600.0" step="1" label="@am:string/effect_param_rpm" ticks="-1800,-900,-480,-240,-120,-60,-30,0,30,60,120,240,480,900,1800" type="rpm" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            el.transform.angle += p.rpm;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

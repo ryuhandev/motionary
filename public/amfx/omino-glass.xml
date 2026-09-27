@@ -1,0 +1,383 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.ominoglass"
+    compat="acScreenNorm-y"
+    name="@am:string/effect_omino_glass_name"
+    desc="@am:string/effect_omino_glass_desc"
+    category="distort"
+    tags="distort"
+    thumb="thumb/directionalblur.webp"
+    experimental="false"
+    overdraw="true"
+    max-overdraw="0.1">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="comp" srcType="comp" />
+        <texture id="blurBuf" srcType="buffer" />
+        <texture id="surfBuf" srcType="buffer" />
+
+        <spinner id="strength" default="0.1" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_bevel" />
+
+<!--        <switch id="wrap" default="false" label="Wrap" />-->
+        <spinner id="refraction" default="5.0" min="-100.0" max="100.0" label="@am:string/effect_param_refraction" step="0.1" />
+        <spinner id="aberration" default="5.0" min="-100.0" max="100.0" label="@am:string/effect_param_chromatic_aberration" step="0.1" />
+        <spinner id="featureSize" default="100.0" min="5.0" max="500.0" label="@am:string/effect_param_feature_size" step="1" />
+        <slider id="samples" default="2" min="1" max="20" label="@am:string/effect_param_smoothing_samples" type="integer" step="1" />
+
+        <color id="tintcolor" default="#FFFF5566" label="@am:string/effect_param_color" alpha="true" />
+        <slider id="blend" default="0.0" min="0.0" max="1" label="@am:string/effect_param_blend" type="percent" />
+
+        <section text="@am:string/effect_section_lightsource" />
+        <selector id="shadingType" default="1" style="dropdown" label="@am:string/effect_param_shading" >
+            <choice label="@am:string/effect_param_none" value="0" />
+            <choice label="@am:string/effect_param_shading_pointlight" value="1" />
+            <choice label="@am:string/effect_param_shading_dirlight" value="2" />
+        </selector>
+        <spinner id="lightIntensity" default="1.0" min="0" max="2" step="0.001" label="@am:string/effect_param_intensity" type="percent" />
+        <spinner id="lightShine" default="0.8" min="0.0" max="1.0" label="@am:string/effect_param_shine" step="0.01" ticks="0.5" />
+        <spinner id="lightSpec" default="30.0" min="1.0" max="250.0" label="@am:string/effect_param_specularity" step="0.5" ticks="30.0" />
+        <spinner id="lightAmbient" default="0.1" min="0.0" max="1.0" label="@am:string/effect_param_ambient" step="0.01" />
+        <color id="lightColor" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" />
+        <point id="lightDir" default="75,-75" label="@am:string/effect_param_direction" />
+        <spinner id="lightDepth" default="100" min="-100" max="800" label="@am:string/effect_param_elevation" step="0.5" ticks="1,100"  />
+        
+        <section text="@am:string/effect_param_roughness" />
+        <switch id="useLumaHeight" label="@am:string/effect_param_use_layer_luminance" default="true" />
+        <spinner id="roughness" default="0.0" min="-1.0" max="1.0" step="0.01" label="@am:string/effect_param_amount" type="percent" ticks="1" />
+        <spinner id="roughnessScale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" />
+        <spinner id="evolution" default="0.0" min="-50" max="50" label="@am:string/effect_param_evolution" step="0.01" snap="1" ticks="1" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+
+    </params>
+
+    <passes>
+        <pass target="blurBuf" effect="com.alightcreative.effects.gaussianblur"/>
+        <pass target="surfBuf" />
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec4 mod289(vec4 x) {
+          return x - floor(x * (1.0 / 289.0)) * 289.0;
+        }
+        vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+        vec4 permute(vec4 x) {
+             return mod289(((x*34.0)+1.0)*x);
+        }
+
+        vec4 taylorInvSqrt(vec4 r)
+        {
+          return 1.79284291400159 - 0.85373472095314 * r;
+        }
+
+        float snoise(vec3 v)
+          {
+          const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+          const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+        // First corner
+          vec3 i  = floor(v + dot(v, C.yyy) );
+          vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+        // Other corners
+          vec3 g = step(x0.yzx, x0.xyz);
+          vec3 l = 1.0 - g;
+          vec3 i1 = min( g.xyz, l.zxy );
+          vec3 i2 = max( g.xyz, l.zxy );
+
+          //   x0 = x0 - 0.0 + 0.0 * C.xxx;
+          //   x1 = x0 - i1  + 1.0 * C.xxx;
+          //   x2 = x0 - i2  + 2.0 * C.xxx;
+          //   x3 = x0 - 1.0 + 3.0 * C.xxx;
+          vec3 x1 = x0 - i1 + C.xxx;
+          vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
+          vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
+
+        // Permutations
+          i = mod289(i);
+          vec4 p = permute( permute( permute(
+                     i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                   + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
+                   + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+        // Gradients: 7x7 points over a square, mapped onto an octahedron.
+        // The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
+          float n_ = 0.142857142857; // 1.0/7.0
+          vec3  ns = n_ * D.wyz - D.xzx;
+
+          vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
+
+          vec4 x_ = floor(j * ns.z);
+          vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+
+          vec4 x = x_ *ns.x + ns.yyyy;
+          vec4 y = y_ *ns.x + ns.yyyy;
+          vec4 h = 1.0 - abs(x) - abs(y);
+
+          vec4 b0 = vec4( x.xy, y.xy );
+          vec4 b1 = vec4( x.zw, y.zw );
+
+          //vec4 s0 = vec4(lessThan(b0,0.0))*2.0 - 1.0;
+          //vec4 s1 = vec4(lessThan(b1,0.0))*2.0 - 1.0;
+          vec4 s0 = floor(b0)*2.0 + 1.0;
+          vec4 s1 = floor(b1)*2.0 + 1.0;
+          vec4 sh = -step(h, vec4(0.0));
+
+          vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+          vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+          vec3 p0 = vec3(a0.xy,h.x);
+          vec3 p1 = vec3(a0.zw,h.y);
+          vec3 p2 = vec3(a1.xy,h.z);
+          vec3 p3 = vec3(a1.zw,h.w);
+
+        //Normalise gradients
+          vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+          p0 *= norm.x;
+          p1 *= norm.y;
+          p2 *= norm.z;
+          p3 *= norm.w;
+
+        // Mix final noise value
+          vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+          m = m * m;
+          return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
+                                        dot(p2,x2), dot(p3,x3) ) );
+        }
+
+        float snoise(vec2 v) {
+
+            // Precompute values for skewed triangular grid
+            const vec4 C = vec4(0.211324865405187,
+                                // (3.0-sqrt(3.0))/6.0
+                                0.366025403784439,
+                                // 0.5*(sqrt(3.0)-1.0)
+                                -0.577350269189626,
+                                // -1.0 + 2.0 * C.x
+                                0.024390243902439);
+                                // 1.0 / 41.0
+
+            // First corner (x0)
+            vec2 i  = floor(v + dot(v, C.yy));
+            vec2 x0 = v - i + dot(i, C.xx);
+
+            // Other two corners (x1, x2)
+            vec2 i1 = vec2(0.0);
+            i1 = (x0.x > x0.y)? vec2(1.0, 0.0):vec2(0.0, 1.0);
+            vec2 x1 = x0.xy + C.xx - i1;
+            vec2 x2 = x0.xy + C.zz;
+
+            // Do some permutations to avoid
+            // truncation effects in permutation
+            i = mod289(i);
+            vec3 p = permute(
+                    permute( i.y + vec3(0.0, i1.y, 1.0))
+                        + i.x + vec3(0.0, i1.x, 1.0 ));
+
+            vec3 m = max(0.5 - vec3(
+                                dot(x0,x0),
+                                dot(x1,x1),
+                                dot(x2,x2)
+                                ), 0.0);
+
+            m = m*m ;
+            m = m*m ;
+
+            // Gradients:
+            //  41 pts uniformly over a line, mapped onto a diamond
+            //  The ring size 17*17 = 289 is close to a multiple
+            //      of 41 (41*7 = 287)
+
+            vec3 x = 2.0 * fract(p * C.www) - 1.0;
+            vec3 h = abs(x) - 0.5;
+            vec3 ox = floor(x + 0.5);
+            vec3 a0 = x - ox;
+
+            // Normalise gradients implicitly by scaling m
+            // Approximation of: m *= inversesqrt(a0*a0 + h*h);
+            m *= 1.79284291400159 - 0.85373472095314 * (a0*a0+h*h);
+
+            // Compute final noise value at P
+            vec3 g = vec3(0.0);
+            g.x  = a0.x  * x0.x  + h.x  * x0.y;
+            g.yz = a0.yz * vec2(x1.x,x2.x) + h.yz * vec2(x1.y,x2.y);
+            return 130.0 * dot(m, g);
+        }
+
+        mat2 rot2(float a) {
+            float s = sin(a);
+            float c = cos(a);
+            return mat2(c,-s,s,c);
+        }
+
+        float turbulence (vec2 st, int OCTAVES, vec2 parallax, float evolution) {
+            // Initial values
+            float value = 0.0;
+            float amplitude = .5;
+            float frequency = 0.;
+            mat2 rr = rot2(0.3);
+            //
+            // Loop of octaves
+            for (int i = 0; i < OCTAVES; i++) {
+                value += amplitude * abs(snoise(vec3(st,evolution)));
+                st *= 2.;
+                st = st * rr;
+                st += parallax;
+                amplitude *= .5;
+            }
+            return value;
+        }
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+        
+        vec4 sampleNearestDistort(vec2 p) {
+            return texture2DCv(surfBuf.texture,p/acScreenSize);
+        }
+        
+        float sampleDistortLuma(vec2 p) {
+            vec4 samp = texture2DCv(surfBuf.texture,p/acScreenSize);
+            float luma = dot( samp.rgb, luminanceWeighting );
+            if( strength>0.0 ) {
+                vec4 blurSamp = texture2DCv(blurBuf.texture,p/acScreenSize);
+                float p = min(blurSamp.a,samp.a);
+                //p = 1.-pow((1.-p),edgeexp);
+                luma += p;
+                luma *= smoothstep( 0.5, 1.0, blurSamp.a);
+            }
+            return luma;
+        }
+        
+        vec4 sampleLinearSrc(vec2 p, vec4 texColor) {
+            vec4 tc = texColor * (1.-tintcolor.a) + vec4(tintcolor.rgb,1.)*tintcolor.a;
+            vec4 c = texture2DCv(comp.texture,p/acScreenSize);
+            c = mix(c,tc/max(0.0001,tc.a)*c,blend*tc.a);
+            return c;
+        }
+        
+        vec4 pluckColor(vec4 texColor, vec2 xy,vec4 rgb)
+        {
+            //if(wrap > 0)
+            //    xy = mod(xy,acScreenSize);
+            vec4 c = sampleLinearSrc(xy,texColor);
+            c *= rgb;
+            return c;
+        }
+
+        vec4 chromatizePixel(vec2 xy,vec2 offset,vec4 texColor)
+        {
+            vec4 result = vec4(0,0,0,0);
+            result += pluckColor(texColor, xy - offset * 1.5,vec4(.2,0,0,0.2));
+            result += pluckColor(texColor, xy - offset,vec4(.3,0,0,0.2));
+            result += pluckColor(texColor, xy - offset / 2.0,vec4(.5,.3333,0,0.2));
+            result += pluckColor(texColor, xy,vec4(0,.33333,0,0.2));
+            result += pluckColor(texColor, xy + offset / 2.0,vec4(0,.33333,.5,0.2));
+            result += pluckColor(texColor, xy + offset,vec4(0,0,.3,.2));
+            result += pluckColor(texColor, xy + offset * 1.5,vec4(0,0,.2,.2));
+            return result;
+        }
+        
+        float lighting(vec3 p, vec3 n) {
+            vec3 lightPos = vec3(lightDir.x/2.0, -lightDir.y/2.0, -lightDepth*2.0);
+            vec3 l = normalize(lightPos-p);
+            return dot(n,l);
+        }
+
+        float directionalLighting(vec3 p, vec3 n) {
+            vec3 lightPos = vec3(lightDir.x/2.0, -lightDir.y/2.0, -lightDepth*2.0);
+            vec3 l = normalize(lightPos);
+            return dot(n,l);
+        }
+
+        vec4 applyShading(vec4 texColor, vec3 p, vec3 n ) {
+            float shine = lightShine;
+            float ambient = lightAmbient;
+            float spec = lightSpec;
+            vec4 result = vec4(0.);
+            if( shadingType == 0 ) {                // Flat
+                result = texColor;
+            } else if( shadingType == 1 ) {         // Point Light
+                float l = lighting(p,n);
+                vec3 tc = texColor.rgb / max(texColor.a,0.0001);
+                vec3 surface = tc * ambient + tc * lightColor.rgb * l * (1.-ambient);
+                surface *= lightIntensity;
+                float s = pow(l,spec);
+                surface = mix(surface*(1.-shine*0.1),vec3(1.),shine*s);
+                result = clamp(vec4(surface, 1.),0.,1.) * texColor.a;
+            } else if( shadingType == 2 ) {         // Directonal Light
+                float l = directionalLighting(p,n);
+                vec3 tc = texColor.rgb / max(texColor.a,0.0001);
+                vec3 surface = tc * ambient + tc * lightColor.rgb * l * (1.-ambient);
+                surface *= lightIntensity;
+                float s = pow(l,spec);
+                surface = mix(surface*(1.-shine*0.1),vec3(1.),shine*s);
+                result = clamp(vec4(surface, 1.),0.,1.) * texColor.a;
+            }
+
+            return result;
+        }
+
+
+        vec4 evaluatePixelXy(vec2 srcXy, vec4 texColor) {
+            vec2 imageSize = acScreenSize;
+            
+            vec2 slope = vec2(0.);
+            vec2 dx = vec2(2.0,0.0);
+            vec2 dy = vec2(0.0,2.0);
+            float floatSamples = float(samples);
+            int intSamples = int(samples);
+            
+            for(int i = -intSamples; i < intSamples; i++) {
+                float n = float(i);
+                slope.x += sampleDistortLuma(srcXy+dx*(n-0.5)) - sampleDistortLuma(srcXy+dx*n+(0.5));
+                slope.y += sampleDistortLuma(srcXy+dy*(n-0.5)) - sampleDistortLuma(srcXy+dy*n+(0.5));
+            }
+            slope /= floatSamples;
+            
+            vec3 p = vec3(slope,-0.5);
+            vec3 n = normalize(p);
+            
+            vec2 sourceXy = srcXy + slope * featureSize * refraction;
+            vec2 aberrXy = slope * featureSize * aberration;
+
+            vec4 result = chromatizePixel(sourceXy,aberrXy,texColor);
+            
+            result.a = 1.0;
+            result = clamp(result,0.,1.);
+            //result = vec4(slopeX,slopeY,0.5,1.0);
+            return applyShading(result,p,n);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            if( acPass==1 ) {
+                vec4 result = texColor;
+                if( !useLumaHeight ) {
+                    result.rgb = vec3(result.a);
+                }
+                if( abs(roughness) > 0.0001 ) {
+                    vec2 st = acLayerNorm;
+                    st.x *= acLayerSize.x/acLayerSize.y;
+                    float scale = 0.15 * roughnessScale;
+                    int OCTAVES = 2;
+                    vec2 parallax = vec2(0.,0.);
+                    float p;
+                    if( roughness < 0.0 ) {
+                        p = (turbulence((st-0.5)/scale+0.5, OCTAVES, parallax, evolution + 7391.935*seed)) * (-roughness/3.);
+                    } else {
+                        p = (1.-turbulence((st-0.5)/scale+0.5, OCTAVES, parallax, evolution + 7391.935*seed)) * (roughness/3.);
+                    }
+                    result.rgb *= (1.-p);
+                }
+                gl_FragColor = result;
+            } else {
+                gl_FragColor = evaluatePixelXy(acScreenNorm*acScreenSize,texColor) * texColor.a;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

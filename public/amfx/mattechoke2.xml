@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.mattechoke" name="@am:string/effect_mattechoke_name" category="matte" tags="matte,raster" desc="@am:string/effect_mattechoke_desc" thumb="thumb/mattechoke.webp" >
+
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="xDistBuf" srcType="buffer" />
+        <spinner id="choke" default="5.0" min="0.0" max="200.0" label="@am:string/effect_param_choke" />
+        <spinner id="feather" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_feather" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+    </params>
+
+    <passes>
+        <pass target="xDistBuf" />
+        <pass />
+    </passes>
+
+    <shader type="fragment"><![CDATA[
+
+        #define MULTISAMPLE 1.0
+        #define MAX_RADIUS 16383.0
+
+        vec2 encodeFloat(float v) {
+            highp vec2 enc = fract(vec2(1.0, 255.0)*v);
+            enc.x -= enc.y/255.0;
+            return enc;
+        }
+
+        float decodeFloat(vec2 v) {
+            return dot(v,vec2(1.0,1.0/255.0));
+        }
+
+        void main() {
+
+            //float radius=max(max(innerBorderSize,outerBorderSize),centerBorderSize)*MULTISAMPLE;
+            vec2 imgSize = getTexSize(inputImg.size);
+            float chokeConv = choke * length(imgSize)/length(vec2(1024, 1024));
+            float radius=chokeConv*MULTISAMPLE;
+
+            int from = -max(1,int(radius));
+            int to = max(1,int(radius));
+
+            // Size of a pixel
+            float px = (1.0/imgSize.x);
+            float py = (1.0/imgSize.y);
+
+            if( acPass==0 ) {
+
+                // Calculate distance on X-axis and encode in a texture
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float x = float(i);
+
+                    vec4 sample = texture2DCv(inputImg.texture,vec2(acScreenNorm.s + x*(px/MULTISAMPLE),acScreenNorm.t));
+                    float xdistOut = sample.a > 0.0 ? abs(x) : radius*2.0;
+                    float xdistIn = sample.a < 0.003 ? abs(x) : radius*2.0;
+                    nearestOutside = min(nearestOutside,xdistOut);
+                    nearestInside = min(nearestInside,xdistIn);
+
+                }
+
+                gl_FragColor = vec4(encodeFloat(nearestOutside/MAX_RADIUS),encodeFloat(nearestInside/MAX_RADIUS));
+
+            } else {
+
+                // Final pass
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float y = float(i);
+
+                    vec4 sample = texture2DCv(xDistBuf.texture,vec2(acScreenNorm.s,acScreenNorm.t + y*(py/MULTISAMPLE)));
+
+                    float xdistOut = decodeFloat(sample.rg) * MAX_RADIUS;
+                    float xdistIn = decodeFloat(sample.ba) * MAX_RADIUS;
+                    float ydist = abs(y);
+                    float distOut = length(vec2(xdistOut,ydist));
+                    float distIn = length(vec2(xdistIn,ydist));
+
+                    nearestInside = min(nearestInside,distIn);
+                    nearestOutside = min(nearestOutside,distOut);
+                }
+
+                float nearestMid = max(nearestInside, nearestOutside);
+
+                vec4 original = texture2DCv(inputImg.texture,acScreenNorm.st);
+
+                //vec4 outColor = outerBorderSize<0.003 ? vec4(0.0)  : mix(outerBorderColor,  vec4(0.0), smoothstep(1.0-1.5/outerBorderSize,1.0,nearestOutside/(outerBorderSize/MULTISAMPLE)));
+                //vec4 inColor = innerBorderSize<0.003 ? vec4(0.0)   : mix(innerBorderColor,  vec4(0.0), smoothstep(1.0-1.5/innerBorderSize,1.0,nearestInside/(innerBorderSize/MULTISAMPLE))) * original.a;
+                //vec4 midColor = centerBorderSize<0.003 ? vec4(0.0) : mix(centerBorderColor, vec4(0.0), smoothstep(1.0-1.5/centerBorderSize,1.0,nearestMid/(centerBorderSize/MULTISAMPLE)));
+
+                float inAlpha = chokeConv > 0.0 ? smoothstep((1.0-1.5/chokeConv)*(1.0-feather),1.0,nearestInside/(chokeConv/MULTISAMPLE)): 1.0;
+                if(invert) {
+                    inAlpha = 1. - inAlpha;
+                }
+                //vec4 result = outColor;
+                //result = original + result*(1.0-original.a);
+                //result = inColor + result*(1.0-inColor.a);
+                //result = midColor + result*(1.0-midColor.a);
+                gl_FragColor = original * inAlpha;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

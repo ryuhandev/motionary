@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.coloradj" name="Color Adjust" desc="Color Adjust" category="color" thumb="thumb/saturation.jpg" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Color Adjust</string>-->
+            <!--<string name="desc">Adjusts brightness, contrast, saturation, and vibrance. This is best used with video or photographic images.</string>-->
+            <!--<string name="brightness">Brightness</string>-->
+            <!--<string name="contrast">Contrast</string>-->
+            <!--<string name="saturation">Saturation</string>-->
+            <!--<string name="hue">Hue Shift</string>-->
+            <!--<string name="vibrance">Vibrance</string>-->
+        <!--</locale>-->
+        <!--<locale lang="ko">-->
+            <!--<string name="name">색상 조정</string>-->
+            <!--<string name="desc">명도, 대비, 채도 조정</string>-->
+            <!--<string name="brightness">명도</string>-->
+            <!--<string name="contrast">대비</string>-->
+            <!--<string name="saturation">채도</string>-->
+            <!--<string name="hue">색조 변경</string>-->
+            <!--<string name="vibrance">생동감</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="brightness" default="0.0" min="-1.0" max="1.0" label="@am:string/effect_param_brightness" />
+        <slider id="contrast" default="0.0" min="-1.0" max="3.0" label="@am:string/effect_param_contrast" />
+        <slider id="saturation" default="0.0" min="-1.0" max="1.0" label="@am:string/effect_param_saturation" />
+        <slider id="vib" default="1.0" min="1.0" max="2.0" label="@am:string/effect_param_vibrance" />
+        <!--<slider id="hue" default="0.0" min="0.0" max="360.0" label="@string/hue" />-->
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            //float hue = 0.0;
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+            //float rad = hue * 0.0174533;
+            //highp mat3 huemat = mat3(
+            //    1.0,  0.0,       0.0,
+            //    0.0,  cos(rad),  sin(rad),
+            //    0.0,  -sin(rad), cos(rad)
+            //);
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            highp vec3 rgb = texColor.rgb;
+            lowp float a = texColor.a;
+            highp vec3 yuv = rgb * rgb2yuv;
+
+            //-- Vibrance 1 --
+            float origSat = min(1.0,length(yuv.yz)*2.5); //
+            vec2 satUV = yuv.yz * vib;
+            yuv.yz = mix(satUV,yuv.yz,origSat);
+            //--------------
+
+            //-- Vibrance 2 --
+            //float origSat = min(1.0,length(yuv.yz)*2.5); //
+            //vec2 satUV = yuv.yz * pow(origSat+1.0,vib);
+            //yuv.yz = mix(satUV,yuv.yz,origSat);
+            //--------------
+
+            yuv.yz = yuv.yz * (saturation+1.0);
+            //yuv = yuv * huemat;
+            yuv.x = (yuv.x-0.5*a) * (contrast+1.0) + 0.5*a + brightness*a;
+            rgb = yuv * yuv2rgb;
+            //rgb = (rgb - 0.5) * (contrast+1.0) + 0.5 + brightness;
+            gl_FragColor = vec4(rgb,a);
+        }
+
+    ]]></shader>
+
+</effect>

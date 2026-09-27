@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.squeeze" name="@am:string/effect_squeeze_name" desc="@am:string/effect_squeeze_desc" category="distort" tags="distort,fun,raster" thumb="thumb/squeeze2.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <!--<point id="centerPoint" label="@am:string/effect_param_center" />-->
+        <spinner id="strength" default="0.0" min="-2" max="2" label="@am:string/effect_param_strength" step="0.01" ticks="-1.0,-0.5,0,0.5,1.0"/>
+        <!--<spinner id="radius" default="0.3" min="0.0" max="2.5" label="@am:string/effect_param_radius" step="0.005" />-->
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        void main() {
+            vec2 st = acLayerNorm;
+
+            float str = strength/2.0;
+
+            st -= 0.5;
+            st *= 2.0;
+
+            float xdiv = 1. + (1.-pow(abs(st.y), 2.0))*-str;
+            float ydiv = 1. + (1.-pow(abs(st.x), 2.0))*str;
+            xdiv = clamp(xdiv, 0., 2. );
+            ydiv = clamp(ydiv, 0., 2. );
+            st.x /= xdiv;
+            st.y /= ydiv;
+
+            st /= 2.0;
+            st += 0.5;
+
+            //float inside = step(0.,st.x) * step(st.x,1.) * step(0.,st.y) * step(st.y,1.);
+
+            gl_FragColor = texture2DCv(inputImg.texture,l2s(st));
+            //gl_FragColor = mix(vec4(xdiv,ydiv,0.5,1.0), texture2DCv(inputImg.texture,l2s(st)), 0.5);// * inside;
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.oscillate3" name="@am:string/effect_oscillate_name" desc="@am:string/effect_oscillate_desc" auto-transform="true" category="transform" tags="transform,auto,essentials,shake,propAdjust,parenting,camera" thumb="thumb/oscillate.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Oscillate</string>-->
+            <!--<string name="desc">Moves the layer position back and forth repeatedly. Direction, frequency, and distance can be adjusted.</string>-->
+            <!--<string name="angle">Angle</string>-->
+            <!--<string name="freq">Frequency</string>-->
+            <!--<string name="mag">Magnitude</string>-->
+            <!--<string name="wave">Wave</string>-->
+            <!--<string name="sine">Sine</string>-->
+            <!--<string name="triangle">Triangle</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <selector id="direction" default="0" style="radio" label="@am:string/effect_param_direction" >
+            <choice label="@am:string/effect_param_angle" value="0" enableTargets="angle" />
+            <choice label="@am:string/effect_param_depth" value="1" />
+            <choice label="@am:string/effect_param_orbit" value="2" enableTargets="angle" />
+        </selector>
+        <spinner id="angle" default="45" min="-3600.0" max="3600.0" step="0.1" ticks="-360,-270,-180,-90,-45,0,45,90,180,270,360" label="@am:string/effect_param_angle" type="angle" enabled="false" />
+        <spinner id="freq" default="2.0" min="0.0" max="16.0" step="0.01" label="@am:string/effect_param_freq" ticks="0.5,1,2,3,4,5,6,7,8,9,10" type="hz" />
+        <spinner id="mag" default="25" min="0" max="4000" step="1" label="@am:string/effect_param_mag" />
+        <selector id="type" default="0" style="radio" label="@am:string/effect_param_wave" >
+            <choice label="@am:string/effect_param_sine" value="0" />
+            <choice label="@am:string/effect_param_triangle" value="1" />
+        </selector>
+        <spinner id="phase" default="0.0" min="0.0" max="1000.0" label="@am:string/effect_param_phase" step="0.01" ticks="1,2,3,4,5" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let t = env.time;
+            var a = (90. - p.angle) * (Math.PI / 180);
+            var dx = Math.sin(a);
+            var dy = Math.cos(a);
+            let m;
+            if( p.type == 0 ) {
+                m = Math.sin((p.freq * 2.0 + p.phase*2.0) * 3.14159)
+            } else {
+                m = AM.triangle((p.freq * 2.0 + p.phase*2.0) / 2.0 + p.phase)
+            }
+            if( p.direction == 1 ) {
+                el.transform.location.z += p.mag * m;
+            } else if( p.direction == 2 ) {
+                dx *= p.mag * m;
+                dy *= p.mag * m;
+                el.transform.location.x += dx;
+                el.transform.location.y += dy;
+                let m2;
+                if( p.type == 0 ) {
+                    m2 = Math.sin((p.freq * 2.0 + (p.phase+0.25)*2.0) * 3.14159)
+                } else {
+                    m2 = AM.triangle((p.freq * 2.0 + (p.phase+0.125)*2.0) / 2.0 + p.phase+0.125)
+                }
+                el.transform.location.z += p.mag * m2;
+            } else {
+                dx *= p.mag * m;
+                dy *= p.mag * m;
+                el.transform.location.x += dx;
+                el.transform.location.y += dy;
+            }
+            return el;
+        }
+
+    ]]></script>
+
+</effect>
+

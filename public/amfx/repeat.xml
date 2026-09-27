@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.repeat" name="@am:string/effect_repeat_name" desc="@am:string/effect_repeat_desc" category="repeat" tags="repeat" thumb="thumb/repeat.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Drawing Progress</string>-->
+            <!--<string name="desc">Drawing Progress</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="count" default="10" min="0" max="9999" step="1" label="@am:string/effect_param_count" />
+        <spinner id="time" default="0" min="0" max="9999" step="0.1" label="@am:string/effect_param_time" />
+        <point id="offset" label="@am:string/effect_param_offset" />
+        <spinner id="angle" default="0.0" min="-1800.0" max="1800.0" label="@am:string/effect_param_angle" ticks="-90,-45,0,45,90" snap="-90,-45,0,45,90" type="angle" step="0.1" />
+        <spinner id="scale" default="1.0" min="0" max="10.0" label="@am:string/effect_param_scale" ticks="0.25,0.5,0.75,1,2" snap="-90,-45,0,45,90" step="0.01" />
+        <spinner id="alpha" default="1" min="0" max="1" step="0.001" label="@am:string/effect_param_alpha" type="percent" />
+    </params>
+
+</effect>

@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.circularripple" name="@am:string/effect_circularripple_name" desc="@am:string/effect_circularripple_desc" tags="warp,raster" category="distort" thumb="thumb/circularripple.webp" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="frequency" default="20" min="0" max="100" label="@am:string/effect_param_freq" step="0.01" />
+        <spinner id="strength" default="0.025" min="-1" max="1" label="@am:string/effect_param_strength" step="0.001" ticks="0" />
+        <spinner id="phase" default="0" min="-1000" max="1000.0" label="@am:string/effect_param_phase" step="0.01" ticks="-3,-2,-1,0,1,2,3" />
+        <spinner id="radius" default="0.3" min="0.0" max="0.8" label="@am:string/effect_param_radius" step="0.01" />
+        <spinner id="feather" default="0.1" min="0.001" max="1.0" step="0.001" label="@am:string/effect_param_feather" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const float PI = 3.14159;
+
+        void main() {
+
+            vec2 st = acScreenNorm;
+            vec2 center = centerPoint/1000. * vec2(-1.,1.);
+
+            float featherSize = radius*0.5*feather;
+            float innerRadius = max(0.0,radius-featherSize);
+            float outerRadius = max(innerRadius+0.00001,radius+featherSize);
+
+            st -= acLayerCenterNorm-center;
+
+            st.y *= (acScreenSize.y/acScreenSize.x);
+
+            float dist = length(st);
+
+            float damping = smoothstep(outerRadius,innerRadius,dist);
+
+            vec2 offset = sin((dist*frequency*PI*2.0)+(phase*PI*2.0))*strength/2.0 * normalize(st) * damping;
+
+            st += offset;
+
+            st.y /= (acScreenSize.y/acScreenSize.x);
+
+            st += acLayerCenterNorm-center;
+
+            gl_FragColor = texture2DCv(inputImg.texture,st);
+
+        }
+
+    ]]></shader>
+
+</effect>

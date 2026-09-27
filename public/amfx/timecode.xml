@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.timecode" name="@am:string/effect_timecode_name" desc="@am:string/effect_timecode_desc" affinity="text!" type="text" category="text" tags="text,auto,utility,propAdjust" thumb="thumb/timecode.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Timecode</string>-->
+            <!--<string name="desc">Formats text as timecode</string>-->
+            <!--<string name="rel">Relative</string>-->
+            <!--<string name="frames">Frames</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <switch id="rel" default="false" label="@am:string/effect_param_rel" />
+        <switch id="frames" default="true" label="@am:string/effect_param_frames" />
+    </params>
+
+
+    <script lang="js"><![CDATA[
+
+        function pad(s) {
+            if( s.length < 2 ) return "0" + s
+            return s
+        }
+
+        function animate(env,el,p) {
+            let t, f;
+            let hours, minutes, seconds, fracs;
+            let fps = env.fps;
+            if( p.rel ) {
+                t = env.time * env.duration + env.inTime;
+                f = t * fps;
+            } else {
+                t = env.absTime;
+                f = env.frame;
+            }
+
+            if( p.frames ) {
+                hours = Math.trunc(f / (3600.0*fps)).toString();
+                minutes = Math.trunc((f % (3600.0*fps))/(60.0*fps)).toString();
+                seconds =  Math.trunc((f % (60.0*fps))/fps).toString();
+                fracs = Math.trunc(f % fps).toString();
+            } else {
+                hours = Math.trunc(t / 3600.0).toString();
+                minutes = Math.trunc((t % 3600.0)/60.0).toString();
+                seconds =  Math.trunc((t % 60.0)).toString();
+                fracs = Math.trunc((t % 1.0)*100).toString();
+            }
+
+            if( p.frames ) {
+                if( hours > 0 ) {
+                    el.text = "" + pad(hours) + ":" + pad(minutes) + ":" + pad(seconds) + ":" + pad(fracs)
+                } else {
+                    el.text = "" + pad(minutes) + ":" + pad(seconds) + ":" + pad(fracs)
+                }
+            } else {
+                if( hours > 0 ) {
+                    el.text = "" + pad(hours) + ":" + pad(minutes) + ":" + pad(seconds) + "." + pad(fracs)
+                } else {
+                    el.text = "" + pad(minutes) + ":" + pad(seconds) + "." + pad(fracs)
+                }
+            }
+
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

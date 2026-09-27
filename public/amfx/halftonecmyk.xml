@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.halftonedotscmyk" name="@am:string/effect_halftonedotscmyk_name" desc="@am:string/effect_halftonedotscmyk_desc" category="drawing" tags="drawing, color, pop, raster " thumb="thumb/cmykhalftone.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="amount" default="100" min="0" max="500" label="@am:string/effect_param_amount" step="0.1" />
+        <spinner id="strength" default="0.5" min="0" max="1" label="@am:string/effect_param_strength" step="0.001" ticks="0.5" />
+        <spinner id="blackWeight" default="0.0" min="0" max="1" label="@am:string/effect_param_black" step="0.001" ticks="0.5" type="percent" />
+        <spinner id="angle" default="45.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <spinner id="phase" default="0.5" min="-1000" max="1000.0" label="@am:string/effect_param_phase" step="0.01" ticks="-3,-2,-1.5,-1,-0.5,0,0.5,1,1.5,2,3" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        float halftone(float a, vec4 mask) {
+
+            float rad = a * 0.0174533;
+            mat2 rot = mat2(cos(rad),-sin(rad),sin(rad),cos(rad));
+            mat2 invrot = mat2(cos(-rad),-sin(-rad),sin(-rad),cos(-rad));
+
+            vec2 st = acScreenNorm;
+
+            st -= acLayerCenterNorm;
+            st.y *= (acScreenSize.y/acScreenSize.x);
+            st *= rot;
+
+            // Y Distance
+
+            float distY = mod(st.y*amount,1.);
+
+            if( distY < 0.5 ) {
+                distY = -distY;
+            } else {
+                distY = 1.0-distY;
+            }
+
+            float absDistY = abs(distY);
+
+            distY /= amount;
+
+            // X Distance
+
+            float xoffs = step(1.,mod(st.y*amount+0.5,2.)) * phase;
+
+            float distX = mod(st.x*amount+xoffs,1.);
+
+            if( distX < 0.5 ) {
+                distX = -distX;
+            } else {
+                distX = 1.0-distX;
+            }
+
+            float absDistX = abs(distX);
+
+            distX /= amount;
+
+            // Sampling
+
+            st.y += distY;
+            st.x += distX;
+
+            st *= invrot;
+            st.y /= (acScreenSize.y/acScreenSize.x);
+            st += acLayerCenterNorm;
+
+            vec4 samp = texture2DCv(inputImg.texture,st);
+
+            // CMYK
+
+            float k = min(1.-samp.r, min(1.-samp.g, 1.-samp.b)) * blackWeight;
+            float c = k>=1.0 ? 0.0 : ((1.0 - samp.r) - k) / (1.0-k);
+            float m = k>=1.0 ? 0.0 : ((1.0 - samp.g) - k) / (1.0-k);
+            float y = k>=1.0 ? 0.0 : ((1.0 - samp.b) - k) / (1.0-k);
+
+            vec4 cmyk = vec4(c,m,y,k);
+
+            float lum = length(cmyk*mask) / length(mask);
+
+            float dist = length(vec2(absDistX,absDistY));
+            float radius = strength*2.0;
+
+            float mag = max(0., radius-dist);
+
+            float p = smoothstep( 0.4,0.6, mag*lum) * samp.a;
+
+            return p;
+        }
+
+        void main() {
+
+            float c = halftone(angle+15., vec4(1., 0., 0., 0.));
+            float m = halftone(angle+75., vec4(0., 1., 0., 0.));
+            float y = halftone(angle+0., vec4(0., 0., 1., 0.));
+            float k = halftone(angle+45., vec4(0., 0., 0., 1.));
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+
+            vec4 outColor = vec4(1.-c-k, 1.-m-k, 1.-y-k, 1.) * texColor.a;
+
+            gl_FragColor = outColor;
+
+        }
+
+    ]]></shader>
+
+</effect>

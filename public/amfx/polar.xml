@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.polar" name="@am:string/effect_polar_name" desc="@am:string/effect_polar_desc" category="distort" tags="distort,raster,membersOnly" thumb="thumb/polarcoord.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <spinner id="crop" default="2.0" min="0.0" max="999.0" label="@am:string/effect_param_crop" step="1" />
+        <spinner id="feather" default="0.0" min="0.0" max="999.0" label="@am:string/effect_param_feather" step="1" />
+        <spinner id="scale" default="1" min="0.01" max="8.0" step="0.01" label="@am:string/effect_param_scale" ticks="0" />
+        <spinner id="radius" default="0" min="-10" max="100" step="0.01" label="@am:string/effect_param_radius" ticks="0" />
+        <spinner id="width" default="1" min="0" max="10" step="0.01" label="@am:string/effect_param_width" ticks="1" />
+        <switch id="stretch" label="@am:string/effect_param_matchratio" default="false" />
+        <switch id="mirror" label="@am:string/effect_param_mirror" default="false" />
+        <slider id="repeat" default="1.0" min="1" max="16.0" step="1" label="@am:string/effect_param_repeat" />
+        <point id="position" default="0.0,0.0" label="@am:string/effect_param_position" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        vec4 getSample( float a, float r ) {
+            a *= 1. - (0.5/acLayerSize.x);
+            a += 0.5/acLayerSize.x;
+            vec2 sampleCoord = vec2(a,r);
+            sampleCoord = (vec4(sampleCoord,0.0,1.0) * acLayerToScreen).xy;
+            return texture2DCv(inputImg.texture,sampleCoord);
+        }
+
+        float smoothStep(float edge0, float edge1, float t) {
+            if(edge0 == edge1) return 1.0;
+            return smoothstep(edge0, edge1, t);
+        }
+
+        void main() {
+            float rad = angle * 0.0174533;
+            vec2 pos = acLayerNorm - 0.5;
+            if(!stretch) {
+                pos.x *= acLayerSize.x / acLayerSize.y;
+            }
+            pos /= scale;
+            pos += (position*vec2(-1.0,1.0)) / 1000.0;
+            float r = (length(pos)*2.0 - radius) / max(width,0.0000001);
+            float a = mod(((atan(pos.y,pos.x)+rad)/6.28318)+0.5,1.0);
+            a = mod(a * repeat,1.0);
+            if(mirror) {
+                a = abs(a * 2.0 - 1.0);
+            }
+            float cropFactor = (1.-(1./acLayerSize.x*(crop)));
+            float featherFactor = (1.-(1./acLayerSize.x*(feather)));
+            a = (a - 0.5) * featherFactor + 0.5;
+            float featherDist = (1.0 - featherFactor);
+            float f0 = smoothStep(0.0,featherDist,a);
+            float f1 = smoothStep(1.0,1.0-featherDist,a);
+
+            a = (a - 0.5) * cropFactor + 0.5;
+
+            float cff = cropFactor * featherFactor;
+
+            if( feather >= 0.0 && f0+f1 > 0.0 ) {
+                gl_FragColor = mix( getSample(a+cff,r), mix( getSample(a-cff,r), getSample(a,r), f1 ), f0);
+            } else {
+                gl_FragColor = getSample(a,r);
+            }
+
+        }
+
+    ]]></shader>
+
+</effect>

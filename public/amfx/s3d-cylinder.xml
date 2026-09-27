@@ -1,0 +1,271 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.cylinder" name="@am:string/effect_cylinder_name" desc="@am:string/effect_cylinder_desc" category="3d" tags="3d,lighting,raster" thumb="thumb/cylinder.webp" overdraw="true" max-overdraw="0.2" experimental="false" deprecated="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <orient id="orient" label="@am:string/effect_param_orientation" invert="true" />
+        <xyz id="rotate" label="@am:string/effect_param_rotation" type="rotate" />
+        <spinner id="radius" default="1.0" min="0.01" max="10" label="@am:string/effect_param_radius" step="0.001" ticks="1" multiplier="100" />
+        <spinner id="height" default="3.0" min="0.01" max="10" label="@am:string/effect_param_length" step="0.001" ticks="1" multiplier="100" />
+        <spinner id="smooth" default="0" min="0" max="5.0" label="@am:string/effect_param_smoothing" step="0.001" />
+        <xyz id="position" default="0.,100.,600." label="@am:string/effect_param_position" step="0.01" ticks="1.0" />
+        <spinner id="scale" default="1.0" min="0" max="10.0" label="@am:string/effect_param_scale" step="0.01" ticks="1.0" />
+
+        <section text="@am:string/effect_section_lightsource" />
+        <selector id="shadingType" default="1" style="dropdown" label="@am:string/effect_param_shading" >
+            <choice label="@am:string/effect_param_shading_flat" value="0" />
+            <choice label="@am:string/effect_param_shading_pointlight" value="1" />
+            <choice label="@am:string/effect_param_shading_dirlight" value="2" />
+            <choice label="@am:string/effect_param_shading_depth" value="3" />
+            <choice label="@am:string/effect_param_shading_normal" value="4" />
+            <choice label="@am:string/effect_param_shading_normal_with_depth" value="5" />
+        </selector>
+        <spinner id="lightIntensity" default="1.0" min="0" max="2" step="0.001" label="@am:string/effect_param_intensity" type="percent" />
+        <spinner id="shine" default="0.8" min="0.0" max="1.0" label="@am:string/effect_param_shine" step="0.01" ticks="0.5" />
+        <spinner id="spec" default="30.0" min="1.0" max="150.0" label="@am:string/effect_param_specularity" step="0.5" ticks="30.0" />
+        <spinner id="ambient" default="0.1" min="0.0" max="1.0" label="@am:string/effect_param_ambient" step="0.01" />
+        <color id="lightColor" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" />
+        <point id="lightDir" default="75,-75" label="@am:string/effect_param_direction" />
+        <spinner id="lightDepth" default="100" min="-100" max="800" label="@am:string/effect_param_elevation" step="0.5" ticks="1,100"  />
+
+        <section text="@am:string/effect_section_texturemap" />
+        <switch id="mirror" default="false" label="@am:string/effect_param_mirror" />
+        <spinner id="texRepeatX" default="1" min="0.01" max="20.0" step="0.01" label="@am:string/effect_param_repeat_x" />
+        <spinner id="texRepeatY" default="1" min="0.01" max="20.0" step="0.01" label="@am:string/effect_param_repeat_y" />
+        <spinner id="texAngle" default="0.0" min="-3600" max="3600" label="@am:string/effect_param_angle" step="0.1" ticks="0" type="angle" />
+        <spinner id="texCrop" default="1" min="0.01" max="2.0" label="@am:string/effect_param_crop" step="0.001" ticks="1.0" />
+        <spinner id="texTwirl" default="0.0" min="-3600" max="3600" label="@am:string/effect_param_twirl" step="0.1" ticks="0" type="angle" />
+        <point id="texOffset" label="@am:string/effect_param_offset" />
+
+        <section text="@am:string/effect_section_raymarch" />
+        <tip text="@am:string/effect_raymarch_iter_tip" />
+        <slider id="MAX_ITER" default="60" min="10" max="200" label="@am:string/effect_param_raymarch_iter" type="integer" step="1" ticks="30,60,100" snap="30,60,100" />
+
+    </params>
+
+    <shader type="vertex" precision="high"><![CDATA[
+
+        varying mat4 invOrient;
+
+        mat4 inverse( in mat4 m )
+        {
+            return mat4(
+                m[0][0], m[1][0], m[2][0], 0.0,
+                m[0][1], m[1][1], m[2][1], 0.0,
+                m[0][2], m[1][2], m[2][2], 0.0,
+                -dot(m[0].xyz,m[3].xyz),
+                -dot(m[1].xyz,m[3].xyz),
+                -dot(m[2].xyz,m[3].xyz),
+                1.0 );
+        }
+
+        mat4 rotationAxisAngle( vec3 v, float angle )
+        {
+            float s = sin( angle );
+            float c = cos( angle );
+            float ic = 1.0 - c;
+
+            return mat4( v.x*v.x*ic + c,     v.y*v.x*ic - s*v.z, v.z*v.x*ic + s*v.y, 0.0,
+                         v.x*v.y*ic + s*v.z, v.y*v.y*ic + c,     v.z*v.y*ic - s*v.x, 0.0,
+                         v.x*v.z*ic - s*v.y, v.y*v.z*ic + s*v.x, v.z*v.z*ic + c,     0.0,
+                         0.0,                0.0,                0.0,                1.0 );
+        }
+
+        void main() {
+            vertShaderInit();
+            vec3 r = rotate * 0.0174533;
+            mat4 rx = rotationAxisAngle(vec3(1.,0.,0.),r.x);
+            mat4 ry = rotationAxisAngle(vec3(0.,1.,0.),r.y);
+            mat4 rz = rotationAxisAngle(vec3(0.,0.,1.),r.z);
+            invOrient = orient * rz * rx * ry;
+        }
+
+    ]]></shader>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        #define OBJECT_CENTER (position/100.)
+        //#define MAX_ITER 35
+
+        varying mat4 invOrient;
+
+        float sdRoundedCylinder( vec3 p, float ra, float rb, float h )
+        {
+            vec2 d = vec2( length(p.xz)-2.0*ra+rb, abs(p.y) - h );
+            return min(max(d.x,d.y),0.0) + length(max(d,0.0)) - rb;
+        }
+
+        float dist(vec3 p) {
+            float d = 100000000.0;
+
+            p = p-OBJECT_CENTER;
+            p = (vec4(p,1.) * invOrient).xyz;
+
+            d = min(d,sdRoundedCylinder(p,radius,smooth,height));
+            return d;
+        }
+
+        float march(vec3 ro, vec3 rd) {
+            float d = 0.0;
+            for( int i=0; i<int(MAX_ITER); i++ ) {
+                vec3 p = ro + rd*d;
+                float dd = dist(p);
+                d += dd;
+                if( dd < 0.00001 || d > 1000.0 ) break;
+            }
+            return d;
+        }
+
+        mat4 rotationAxisAngle( vec3 v, float angle )
+        {
+            float s = sin( angle );
+            float c = cos( angle );
+            float ic = 1.0 - c;
+
+            return mat4( v.x*v.x*ic + c,     v.y*v.x*ic - s*v.z, v.z*v.x*ic + s*v.y, 0.0,
+                         v.x*v.y*ic + s*v.z, v.y*v.y*ic + c,     v.z*v.y*ic - s*v.x, 0.0,
+                         v.x*v.z*ic - s*v.y, v.y*v.z*ic + s*v.x, v.z*v.z*ic + c,     0.0,
+                         0.0,                0.0,                0.0,                1.0 );
+        }
+
+        mat4 vecToVec( vec3 from, vec3 to ) {
+            vec3 w = cross(normalize(from),normalize(to));
+            vec3 axis = normalize(w);
+            float angle = asin(length(w));
+            return rotationAxisAngle(axis,angle);
+        }
+
+        vec3 calcNormal(vec3 p) {
+            float d = dist(p);
+            vec2 e = vec2(.01,0.);
+            return normalize(d - vec3(
+                dist(p-e.xyy),
+                dist(p-e.yxy),
+                dist(p-e.yyx)));
+        }
+
+        float lighting(vec3 p, vec3 n) {
+            vec3 lightPos = vec3(lightDir.x/2.0, -lightDir.y/2.0, -lightDepth*2.0);
+            vec3 l = normalize(lightPos-p);
+            return dot(n,l);
+        }
+
+        float directionalLighting(vec3 p, vec3 n) {
+            vec3 lightPos = vec3(lightDir.x/2.0, -lightDir.y/2.0, -lightDepth*2.0);
+            vec3 l = normalize(lightPos);
+            return dot(n,l);
+        }
+
+        vec4 applyShading(vec4 texColor, vec3 p, vec3 n, float d ) {
+            vec4 result = vec4(0.);
+            float a = smoothstep(30.0,9.,d);
+            a *= smoothstep(0.3,0.2,n.z);
+            if( shadingType == 0 ) {                // Flat
+                result = texColor * a;
+            } else if( shadingType == 1 ) {         // Point Light
+            	float l = lighting(p,n);
+            	vec3 tc = texColor.rgb;
+            	vec3 surface = tc * ambient + tc * lightColor.rgb * l * (1.-ambient);
+            	surface *= lightIntensity;
+            	float s = pow(l,spec);
+            	surface = mix(surface*(1.-shine*0.1),vec3(1.),shine*s);
+                result = vec4(surface, texColor.a) * a;
+            } else if( shadingType == 2 ) {         // Directonal Light
+            	float l = directionalLighting(p,n);
+            	vec3 tc = texColor.rgb;
+            	vec3 surface = tc * ambient + tc * lightColor.rgb * l * (1.-ambient);
+            	surface *= lightIntensity;
+            	float s = pow(l,spec);
+            	surface = mix(surface*(1.-shine*0.1),vec3(1.),shine*s);
+                result = vec4(surface, texColor.a) * a;
+            } else if( shadingType == 3 ) {         // Depth Map
+                //float dd = clamp(1.-d/10.,0.,1.)*2.;
+                float ds = max(radius,height)*2.5;
+                float dd = 1. - ((d - OBJECT_CENTER.z + ds/2.)/ds);
+                result = vec4( dd,dd,dd, 1. ) * a;
+            } else if( shadingType == 4 ) {         // Normal Map
+                result = vec4( (n/2.)+0.5, 1. ) * a;
+            } else if( shadingType == 5 ) {         // Normal * Depth
+                float ds = max(radius,height)*2.5;
+                float dd = 1. - ((d - OBJECT_CENTER.z + ds/2.)/ds);
+                result = vec4( ((n/2.)+0.5)*dd, 1. ) * a;
+            }
+
+            return result;
+        }
+
+        vec2 mapTexture( vec2 texCoord ) {
+            float texRad = texAngle * 0.0174533;
+            float texCos = cos(texRad);
+            float texSin = sin(texRad);
+            mat2 texRot = mat2( texCos, -texSin, texSin, texCos );
+
+            float texTwirlRad = texTwirl * 0.0174533;
+            float texTwirlCos = cos(texTwirlRad);
+            float texTwirlSin = sin(texTwirlRad);
+            mat2 texTwirlRot = mat2( texTwirlCos, -texTwirlSin, texTwirlSin, texTwirlCos );
+
+            vec2 texScaleVec = vec2(1./texRepeatX,1./texRepeatY);
+
+            texCoord *= texRot;
+
+            texCoord += texOffset / 1000.0;
+            texCoord /= texScaleVec;
+            if( mirror ) {
+                texCoord = abs(mod(texCoord,2.0)-1.0);
+            } else {
+                texCoord = mod(texCoord, 1.);
+            }
+
+            texCoord -= 0.5;
+            texCoord = texCoord * (1.-5./acScreenSize);
+            texCoord *= texCrop;
+            texCoord *= texTwirlRot;
+            texCoord += 0.5;
+            return texCoord;
+        }
+
+        void main() {
+
+            vec2 st = acLayerNorm;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+
+            st /= scale;
+
+            vec3 ro = vec3(0., 1., -1.);
+            vec3 rd = normalize(vec3(st, 1.));
+
+            float d = march(ro,rd);
+            vec3 p = ro + rd * d;
+
+            vec3 n = calcNormal(p);
+        	vec3 nn = n;
+        	float l = lighting(p,n);
+
+            vec4 localCoord = vec4(p-OBJECT_CENTER, 1.);
+            n = (vec4(n,1.) * invOrient).xyz;
+            localCoord *= invOrient;
+            vec4 pp = localCoord;
+
+            vec2 texCoordOutside = vec2(atan(pp.x,pp.z)/6.2831+0.5,pp.y/height/2. + 0.5);
+            texCoordOutside.x = 1.-mod(texCoordOutside.x + 0.5, 1.);
+            //texCoordEnds.x = 1. - texCoordEnds.x;
+            vec2 texCoordEnds = pp.xz / (radius*2.);
+            texCoordEnds = (texCoordEnds + 1.) / 2.;
+            texCoordEnds.y = n.y < 0.0 ? 1. - texCoordEnds.y : texCoordEnds.y;
+            vec2 texCoord = mix(texCoordOutside,texCoordEnds,abs(n.y));
+
+//            texCoord = mod(texCoord*crop, 1.);
+            texCoord = mapTexture(texCoord);
+
+        	vec4 texColor = texture2DCv( inputImg.texture, (vec4(texCoord,0.0,1.0)*acLayerToScreen).xy );
+
+            gl_FragColor = applyShading(texColor, p, nn, d);
+            //gl_FragColor = d > 500.0 ? vec4( 0. ) : vec4(texColor.rgb * l, texColor.a);
+
+        }
+
+    ]]></shader>
+
+</effect>

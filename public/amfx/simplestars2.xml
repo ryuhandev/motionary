@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.simplestars2" name="@am:string/effect_simplestars_name" desc="@am:string/effect_simplestars_desc" category="procedural" tags="procedural,random,raster" thumb="thumb/simplestars.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <xyz id="starParallax" label="@am:string/effect_param_position" />
+        <spinner id="scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" />
+        <spinner id="starSize" default="0.1" min="0.0" max="5.0" label="@am:string/effect_param_size" step="0.001" />
+        <spinner id="starFeather" default="1.0" min="0.0" max="20.0" label="@am:string/effect_param_feather" step="0.1" />
+        <color id="color" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+        <slider id="starCount" default="25" min="1" max="50" label="@am:string/effect_param_amount" step="1" ticks="5,10,15,20,25,30,35,40,45" />
+        <spinner id="brightness" default="1.0" min="0.0" max="5" label="@am:string/effect_param_brightness" step="0.005" ticks="1.0" />
+        <selector id="blendMode" style="dropdown" default="2" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+        </selector>
+    </params>
+
+    <shader type="fragment" precision="high" fastMath="false"><![CDATA[
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        float rand(vec2 co){
+            return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+        }
+
+        vec2 rand2(vec2 co){
+            return vec2(rand(co), rand(co+vec2(3.7321,9.2517)*vec2(7.1231,6.9377)));
+        }
+
+        float star(vec2 st, float size, float feather) {
+            float adjFeather = size * feather;
+            return smoothstep(1.0-size-adjFeather,1.0-size,sin(st.x*20.)*sin(st.y*20.));
+        }
+
+        float stars(vec2 st, vec2 parallax, float depth, float size, float feather) {
+            float p = 0.;
+
+            size *= 0.001;
+
+            float f = fract(depth);
+            float layer = floor(depth);
+            //const float layers = 25.;
+
+            for( float i=1.; i<starCount; i+=1.) {
+                vec2 uv = st;
+                uv *= (i-f)/9.;
+                uv += parallax;
+                p += star(uv+rand2(vec2(i+layer,2.904)), size, feather) * smoothstep(starCount,1.,i-f);
+            }
+
+            return p;
+        }
+
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm;
+            st.y = 1. - st.y;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st /= scale;
+
+            float p = stars(st, -starParallax.xy/1000., starParallax.z/ 45.0, starSize, starFeather);
+
+            vec4 adjColor = clamp(vec4(mix(color.rgb+vec3(0.15,0.15,0.15),vec3(1.),0.05)*p*brightness,1.),0.,1.)*p;
+
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*adjColor.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-adjColor.rgb)),1.0) * texColor.a;
+            } else if( blendMode==3 ) {
+                result = texColor * (1.0-min(p,1.0));
+            } else {
+                result = adjColor*texColor.a;
+                result = texColor*(1.-result.a) + result;
+            }
+            gl_FragColor = mix(texColor,result,alpha);
+        }
+
+    ]]></shader>
+
+</effect>
+

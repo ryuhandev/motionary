@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.blend.colormultiply" name="Blend/Color Multiply" internal="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="comp" srcType="comp" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            // Setup
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 compColor = texture2DCv(comp.texture,acScreenNorm);
+            vec4 backgrnd = vec4(1.0,1.0,1.0,1.0)*(1.0-compColor.a)+compColor*compColor.a;
+            gl_FragColor = texColor*backgrnd;
+        }
+
+    ]]></shader>
+
+</effect>

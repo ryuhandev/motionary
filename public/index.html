@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Alight Motion Web</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="app">
+<div id="phone">
+
+<!-- HOME -->
+<section id="viewHome" class="view active">
+<header class="home-top">
+<button id="homeMenu" class="icon-btn" aria-label="Menu"><svg viewBox="0 0 24 24" width="28" height="28"><path d="M4 6h16M4 12h16M4 18h16" stroke="#1E2233" stroke-width="2" stroke-linecap="round"/></svg></button>
+<div class="home-title">Alight Motion<span class="home-swirl"></span></div>
+<button class="avatar" aria-label="Akun"><svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="8" r="4" fill="#fff"/><path d="M4 20c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5" fill="#fff"/></svg></button>
+</header>
+<div class="home-scroll">
+<div class="home-row-head"><h2>Templat Baru</h2><button class="link">Lihat semua</button></div>
+<div class="tpl-row" id="tplRow"></div>
+<div class="home-row-head"><h2>Proyek terbaru</h2><button class="link">Lihat semua</button></div>
+<button id="btnNewProject" class="new-project">
+<span class="plus-circle"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 5v14M5 12h14" stroke="#101320" stroke-width="2" stroke-linecap="round"/></svg></span>
+<span>Buat Proyek Baru</span>
+</button>
+<div id="importQuick" class="import-quick">
+<div class="iq-title">Muat Preset</div>
+<div class="iq-row">
+<input id="iqLink" type="url" placeholder="Tempel link share alightcreative.com/am/share..." value="https://alightcreative.com/am/share/u/6JkzSLrotfTuykgz8jqCmBktchJ3/p/fwzw6tN4ha-c791f96b154ca7ce">
+<button id="iqLoad" class="btn-dark">Muat</button>
+<label class="btn-light" for="iqFile">XML</label>
+<input id="iqFile" type="file" accept=".xml,.txt,.zip" hidden>
+</div>
+<div id="iqStatus" class="iq-status">Contoh link sudah terisi. Klik Muat untuk mencoba.</div>
+<div class="iq-row"><button id="iqClear" class="btn-light">Bersihkan cache preset (perangkat ini)</button></div>
+</div>
+<div id="projectList" class="project-list"></div>
+<div style="height:96px"></div>
+</div>
+<nav class="bottom-nav">
+<button class="bn active"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v9h-5v-5h-6v5H4z" fill="currentColor"/></svg><span>Beranda</span></button>
+<button class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>Tutorial</span></button>
+<button id="navPlus" class="bn-plus" aria-label="Tambah"><svg viewBox="0 0 24 24" width="34" height="34"><path d="M12 5v14M5 12h14" stroke="#0B0E1A" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+<button class="bn" id="navProject"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M4 9h4"/></svg><span>Proyek</span></button>
+<button class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="14" rx="1.5"/><path d="M4 18h16"/></svg><span>Templat</span></button>
+</nav>
+</section>
+
+<!-- EDITOR -->
+<section id="viewEditor" class="view">
+<header class="ed-top">
+<button id="edBack" class="icon-btn light" aria-label="Kembali"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 4H6v16h9M10 12H2M6 8l-4 4 4 4" fill="none" stroke="#E8EAF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<input id="edName" class="ed-name" value="Proyek Baru 92" maxlength="60">
+<button id="edSettings" class="icon-btn light" aria-label="Pengaturan"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#E8EAF2" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5l1.2 2.4 2.6-.4 1 2.5 2.6.8-.3 2.7 1.9 1.9-1.9 1.9.3 2.7-2.6.8-1 2.5-2.6-.4L12 21.5l-1.2-2.4-2.6.4-1-2.5-2.6-.8.3-2.7L2.9 12l1.9-1.9-.3-2.7 2.6-.8 1-2.5 2.6.4z"/></svg></button>
+<button id="edExport" class="icon-btn light" aria-label="Ekspor"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#E8EAF2" stroke-width="1.8"><path d="M14 4h6v6M20 4L10 14M18 13v7H4V6h7"/></svg></button>
+</header>
+<div class="preview-outer">
+<button id="zoomBtn" class="zoom-btn" aria-label="Zoom"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="10" cy="10" r="6" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M14.5 14.5L20 20M8 10h4M10 8v4M10 4a8 8 0 015.3 2" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+<div id="previewBox" class="preview-box"><canvas id="preview"></canvas><div id="selectBox" class="select-box" hidden></div></div>
+</div>
+<div class="transport">
+<button id="tUndo" class="tr" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 6L4 11l5 5M4 11h10a6 6 0 016 6v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button id="tRedo" class="tr dim" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="M15 6l5 5-5 5M20 11H10a6 6 0 00-6 6v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button id="tPrev" class="tr" aria-label="Awal"><svg viewBox="0 0 24 24"><path d="M6 5v14M18 5l-9 7 9 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button id="tPlay" class="tr" aria-label="Putar"><svg id="playIco" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path id="playTri" d="M10 8.5l6 3.5-6 3.5z" fill="currentColor"/></svg></button>
+<button id="tNext" class="tr" aria-label="Akhir"><svg viewBox="0 0 24 24"><path d="M18 5v14M6 5l9 7-9 7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button id="tDup" class="tr" aria-label="Duplikat"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 16V4h12" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M10 10h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+<button id="tFull" class="tr" aria-label="Layar penuh"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6M9 4H4v5M15 20h5v-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+</div>
+<div class="timeline">
+<div class="tl-tools">
+<button id="tlSpeed" class="tl-tool" aria-label="Kecepatan putar">1×</button>
+<button id="tlZoomOut" class="tl-tool" aria-label="Perkecil timeline">&minus;</button>
+<button id="tlZoomIn" class="tl-tool" aria-label="Perbesar timeline">+</button>
+<button id="tlFit" class="tl-tool" aria-label="Muat seluruh durasi">&#x2921;</button>
+</div>
+<div id="tlViewport" class="tl-viewport">
+<div id="tlContent" class="tl-content">
+<canvas id="ruler" class="tl-ruler" height="26"></canvas>
+<div id="layerBar" class="layer-bar"></div>
+<div id="playhead" class="playhead"><span class="ph-cap"></span></div>
+</div>
+</div>
+<div id="timecode" class="timecode">00:00:00</div>
+<button id="layerAdd" class="timeline-add" aria-label="Tambah layer"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 5v14M5 12h14" fill="none" stroke="#071018" stroke-width="2" stroke-linecap="round"/></svg></button>
+</div>
+<div id="bottomPanel" class="bottom-panel"></div>
+</section>
+
+<!-- CREATE SHEET -->
+<div id="sheetCreate" class="sheet-mask" hidden>
+<div class="sheet light-sheet">
+<div class="seg"><button class="seg-btn active" data-tab="proyek">PROYEK</button><button class="seg-btn" data-tab="elemen">ELEMEN</button></div>
+<div class="field-name"><input id="cpName" value="Proyek Baru 92" maxlength="60"><button id="cpClear" aria-label="Hapus">X</button></div>
+<div class="aspect-row" id="aspectRow">
+<button data-ar="16:9">16:9</button>
+<button data-ar="9:16" class="tall active">9:16</button>
+<button data-ar="4:5">4:5</button>
+<button data-ar="1:1">1:1</button>
+<button data-ar="4:3">4:3</button>
+<button data-ar="custom" class="custom">/</button>
+</div>
+<div class="cp-row"><div class="cp-label">Resolusi<div class="cp-sub" id="cpResSub">Ukuran Komposisi: 960 X 1560</div></div>
+<div class="cp-res"><input id="cpW" type="number" value="960"><button id="cpSwap" aria-label="Tukar">CD</button><input id="cpH" type="number" value="1560"></div></div>
+<div class="cp-row"><div class="cp-label">Frame Rate</div><button class="cp-select" id="cpFps">60 fps</button></div>
+<div class="cp-row"><div class="cp-label">Latar Belakang</div><button class="cp-select" id="cpBg"><span class="dot" style="background:#00a651"></span> Hijau</button></div>
+<div id="cpImport" class="cp-import">
+<div class="cp-label">Muat Preset</div>
+<input id="cpLink" type="url" value="https://alightcreative.com/am/share/u/6JkzSLrotfTuykgz8jqCmBktchJ3/p/fwzw6tN4ha-c791f96b154ca7ce">
+<div class="cp-import-row">
+<button id="cpLoadLink" class="btn-dark">Muat Link</button>
+<label for="cpFile" class="btn-light">Pilih XML / ZIP</label>
+<input id="cpFile" type="file" accept=".xml,.zip,.txt" hidden>
+</div>
+<div id="cpStatus" class="iq-status"></div>
+<div id="cpProjList" class="cp-proj-list"></div>
+</div>
+<div class="cp-foot"><button id="cpCreate" class="btn-text">BUAT PROYEK</button></div>
+<button id="sheetClose" class="sheet-x" aria-label="Tutup">X</button>
+</div>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div id="sheetSettings" class="sheet-mask" hidden>
+<div class="sheet dark-sheet">
+<button class="sheet-x light-x" id="setClose">X</button>
+<div class="set-row" id="setAspectRow">
+<button data-ar="16:9">16:9</button>
+<button data-ar="9:16" class="tall active">9:16</button>
+<button data-ar="4:5">4:5</button>
+<button data-ar="1:1">1:1</button>
+<button data-ar="4:3">4:3</button>
+<button data-ar="custom">/</button>
+</div>
+<div class="set-line"><span>Resolusi</span><button class="cp-select dark" id="setRes">1080p</button></div>
+<div class="set-line"><span>Frame Rate</span><button class="cp-select dark" id="setFps">60 fps</button></div>
+<div class="set-line"><span>Latar Belakang</span><button class="cp-select dark" id="setBg">Hitam</button></div>
+<div class="set-total" id="setTotal">Total Waktu Pengeditan: 00:10</div>
+</div>
+</div>
+
+<!-- EXPORT SHEET -->
+<div id="sheetExport" class="sheet-mask light-mask" hidden>
+<div class="sheet export-sheet">
+<div class="exp-head"><button id="expClose">X</button><h3>Ekspor dan Bagikan</h3><span></span></div>
+<div class="exp-meta"><span>Ruang yang Tersedia</span><b>2.3GB</b></div>
+<div class="exp-meta"><span>Ukuran file (perkiraan)</span><b id="expSize">19.8MB</b></div>
+<label class="exp-opt active"><input type="radio" name="expType" value="video" checked><span class="radio"></span><span class="exp-ico">V</span><span class="exp-txt"><b>Video</b><small id="expVideoSub">MP4 1080p (FHD) 60fps</small></span><span class="chev">></span></label>
+<div class="exp-sub"><button class="cp-select" id="expRes">1080p (FHD)</button><div id="expResList" class="exp-list" hidden>
+<button>1440p (QHD)</button><button class="active">1080p (FHD)</button><button>720p (HD)</button><button>480p</button><button>360p</button><button>270p</button>
+</div></div>
+<div class="exp-sub"><button class="cp-select" id="expFps">60 fps (Proyek)</button><div id="expFpsList" class="exp-list" hidden>
+<button>24 fps</button><button>25 fps</button><button>30 fps</button><button>50 fps</button><button class="active">60 fps (Proyek)</button>
+</div></div>
+<div class="exp-sub"><button class="cp-select" id="expQuality">Kualitas Standar</button><div id="expQualityList" class="exp-list" hidden>
+<button>Kualitas Hemat (file kecil)</button><button class="active">Kualitas Standar</button><button>Kualitas Tinggi</button><button>Kualitas Ultra (file besar)</button>
+</div></div>
+<label class="exp-opt"><input type="radio" name="expType" value="cloud"><span class="radio"></span><span class="exp-ico">C</span><span class="exp-txt"><b>Unggah ke Cloud</b><small>Amankan proyek Anda</small></span></label>
+<label class="exp-opt"><input type="radio" name="expType" value="paket"><span class="radio"></span><span class="exp-ico">P</span><span class="exp-txt"><b>Paket Proyek</b><small>dengan Media Asli</small></span></label>
+<label class="exp-opt"><input type="radio" name="expType" value="png"><span class="radio"></span><span class="exp-ico">I</span><span class="exp-txt"><b>Frame Saat Ini sebagai PNG</b></span></label>
+<label class="exp-opt"><input type="radio" name="expType" value="seq"><span class="radio"></span><span class="exp-ico">S</span><span class="exp-txt"><b>Urutan Gambar</b><small>PNG 360p 30fps</small></span><span class="chev">></span></label>
+<div class="exp-line"><span>Ekspor juga sebagai Template</span><button id="expTpl" class="switch" aria-label="Template"></button></div>
+<button id="expGo" class="btn-export">Ekspor</button>
+<button id="expServerGo" class="btn-line">Export via Server (untuk HP tanpa WebCodecs)</button>
+<div id="expServerHint" class="iq-status"></div>
+<div id="expProgWrap" class="exp-prog" hidden>
+<div class="exp-prog-title" id="expProgTitle">Mengekspor video…</div>
+<div class="exp-bar"><div id="expBarFill" class="exp-bar-fill"></div></div>
+<div class="exp-stats"><span id="expPct">0%</span><span id="expEta">Menghitung sisa waktu…</span><span id="expElapsed">00:00</span></div>
+<div class="exp-frame" id="expFrame">Rendering frame 0 / 0</div>
+<button id="expCancel" class="btn-line">Batalkan</button>
+</div>
+<div id="expDoneWrap" class="exp-done" hidden>
+<div class="exp-done-tick" id="expDoneTick">✓</div>
+<h4 id="expDoneTitle">Export Complete</h4>
+<div class="exp-done-info" id="expDoneInfo"></div>
+<div class="exp-done-btns">
+<button id="expSave" class="btn-export">Simpan / Unduh</button>
+<button id="expTryRt" class="btn-line" style="display:none">Coba Mode Realtime</button>
+<button id="expBack" class="btn-line">Kembali ke Timeline</button>
+</div>
+</div>
+<div id="expStatus" class="iq-status"></div>
+</div>
+</div>
+
+<!-- EFFECT BROWSER -->
+<div id="sheetFx" class="sheet-mask" hidden>
+<div class="sheet dark-sheet fx-sheet">
+<div class="fx-head"><button id="fxBack">&lt;</button><h3>Tambah Efek</h3><button id="fxClose">X</button></div>
+<input id="fxSearch" placeholder="Cari efek...">
+<div id="fxCats" class="fx-cats"></div>
+<div id="fxList" class="fx-list"></div>
+</div>
+</div>
+
+<!-- COLOR FULL -->
+<div id="sheetColor" class="sheet-mask" hidden>
+<div class="sheet dark-sheet color-sheet">
+<div class="color-top"><button id="colBack">O</button><button id="colMode">RGB</button><button id="colOk">V</button></div>
+<div id="colWheelWrap"><canvas id="colWheel" width="320" height="320"></canvas><div id="colPrev"></div><div id="colHex">#FFFFFF (100%)</div></div>
+<div id="colSliders"></div>
+<div id="colGrid" class="col-grid"></div>
+</div>
+</div>
+
+<!-- IMPORT PROJECTS SHEET -->
+<div id="sheetImport" class="sheet-mask" hidden>
+<div class="sheet import-sheet">
+<div class="imp-head"><span class="imp-sp"></span><h3>Impor <span id="impCount">Proyek</span></h3><button id="impClose" class="sheet-x" aria-label="Tutup">X</button></div>
+<div id="impList" class="imp-list"></div>
+<div id="impTotal" class="imp-total"></div>
+</div>
+</div>
+
+<input type="file" id="mediaPick" accept="image/*,video/*,audio/*" hidden>
+<div id="toast" class="toast" hidden></div>
+</div>
+</div>
+<script src="./js/app.js" type="module"></script>
+</body>
+</html>

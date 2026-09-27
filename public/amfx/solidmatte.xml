@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.solidmatte" name="@am:string/effect_solidmatte_name" desc="@am:string/effect_solidmatte_desc" category="matte" tags="matte,raster" thumb="thumb/solidmatte.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="true" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+        <switch id="punchout" default="false" label="@am:string/effect_param_punchout" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            vec4 frontColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 backColor = color * alpha;
+            if( !screenSpace ) {
+                float insideLayer = step(0.0,acLayerNorm.x) * step(acLayerNorm.x,1.0) * step(0.0,acLayerNorm.y) * step(acLayerNorm.y,1.0);
+                backColor *= insideLayer;
+            }
+            if( punchout ) {
+                gl_FragColor = backColor*(1.-frontColor.a);
+            } else {
+                gl_FragColor = backColor*(1.-frontColor.a)+frontColor;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

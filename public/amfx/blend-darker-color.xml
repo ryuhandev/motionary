@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.blend.darkercolor" name="Blend/Darker Color" internal="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="comp" srcType="comp" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        void main() {
+            // Setup
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 compColor = texture2DCv(comp.texture,acScreenNorm);
+            vec3 top = texColor.rgb;
+            vec3 bot = compColor.rgb * texColor.a;
+
+            // Blend top, bot
+            vec3 result = length(luminanceWeighting * top) > length(luminanceWeighting * bot) ? bot : top;
+
+            // Output result
+            gl_FragColor = vec4(result,texColor.a);
+        }
+
+    ]]></shader>
+
+</effect>

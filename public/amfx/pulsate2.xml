@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.pulsate2" name="@am:string/effect_pulsate_name" desc="@am:string/effect_pulsate_desc" auto-transform="true" category="transform" tags="transform,auto,propAdjust,parenting" thumb="thumb/pulsate.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Pulse Size</string>-->
+            <!--<string name="desc">Grows and shrinks a layer repeatedly over time. The amount of growth and the frequency can be adjusted.</string>-->
+            <!--<string name="freq">Frequency</string>-->
+            <!--<string name="minsize">Shrink</string>-->
+            <!--<string name="maxsize">Grow</string>-->
+            <!--<string name="wave">Wave</string>-->
+            <!--<string name="sine">Sine</string>-->
+            <!--<string name="triangle">Triangle</string>-->
+            <!--<string name="phase">Phase</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="freq" default="2.0" min="0.0" max="16.0" label="@am:string/effect_param_freq" type="hz" />
+        <spinner id="minsize" default="0.9" min="0" max="1" label="@am:string/effect_param_minsize" originValue="1" />
+        <spinner id="maxsize" default="1.1" min="1" max="2" label="@am:string/effect_param_maxsize" originValue="1" />
+        <spinner id="phase" default="0" min="0" max="2" label="@am:string/effect_param_startphase" />
+        <selector id="type" default="0" style="radio" label="@am:string/effect_param_wave" >
+            <choice label="@am:string/effect_param_sine" value="0" />
+            <choice label="@am:string/effect_param_triangle" value="1" />
+        </selector>
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let t = env.time;
+            let m
+            if( p.type == 0 ) {
+                m = Math.sin((p.freq+p.phase) * 3.14159)
+            } else {
+                m = AM.triangle((p.freq+p.phase) / 2.0)
+            }
+            let range = (p.maxsize - p.minsize);
+            let ds = (range * ((m+1.0)/2.0) ) + p.minsize;
+            //AM.log("EffectsPulse(A) " + el.transform.scale.x + "," + el.transform.scale.y + "   ds=" + ds + " range=" + range + " m=" + m + " p.minsize=" + p.minsize + " p.maxsize=" + p.maxsize + " dur=" + env.duration + " freq=" + p.freq + " t=" + t);
+            el.transform.scale.x *= ds;
+            el.transform.scale.y *= ds;
+            //AM.log("EffectsPulse(B) " + el.transform.scale.x + "," + el.transform.scale.y);
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

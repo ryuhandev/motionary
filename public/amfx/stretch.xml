@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.stretch" name="@am:string/effect_stretch_name" desc="@am:string/effect_stretch_desc" category="transform" tags="transform,raster" thumb="thumb/stretch.webp" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="scale" default="1" min="0.01" max="50.0" step="0.01" label="@am:string/effect_param_scale" ticks="0" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <switch id="contentOnly" label="@am:string/effect_param_masktolayer" default="false" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            float rad = angle * 0.0174533;
+            mat2 rot = mat2(cos(rad),-sin(rad),sin(rad),cos(rad));
+            mat2 invrot = mat2(cos(-rad),-sin(-rad),sin(-rad),cos(-rad));
+            vec2 sampleCoord = ((((acLayerNorm - 0.5) * rot) * vec2((1.0/scale), 1.0)) * invrot) + 0.5;
+            sampleCoord = (vec4(sampleCoord,0.0,1.0) * acLayerToScreen).xy;
+            if( contentOnly ) {
+                vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+                vec4 newColor = texture2DCv(inputImg.texture,sampleCoord) * texColor.a;
+                gl_FragColor = newColor + (texColor * (1.0-newColor.a));
+            } else {
+                gl_FragColor = texture2DCv(inputImg.texture,sampleCoord);
+            }
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.noise" name="@string/name" desc="@string/desc" category="procedural" thumb="thumb/noise.webp" deprecated="true" tags="auto">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Noise</string>
+            <string name="desc">Random noise that combines with existing layer content. Includes color and monochrome modes. Changes with every frame by default, but includes a "Freeze" option to keep the same noise pattern for every frame.</string>
+            <string name="strength">Strength</string>
+            <string name="mono">Monochrome</string>
+            <string name="clamp">Clamp</string>
+            <string name="overshoot">Overshoot</string>
+            <string name="extremes">Extremes</string>
+            <string name="freeze">Freeze</string>
+            <string name="offsetx">X Offset</string>
+            <string name="offsety">Y Offset</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="amount" default="0.5" min="0.0" max="1.0" label="@string/strength" />
+        <!--<slider id="feather" default="0.05" min="0.01" max="0.75" label="@string/feather" />-->
+        <slider id="overshoot" default="1.0" min="0.5" max="2.0" label="@string/overshoot" />
+        <switch id="mono" default="true" label="@string/mono" />
+        <!--<switch id="clampRange" default="false" label="@string/clamp" />-->
+        <switch id="freeze" default="false" label="@string/freeze" />
+        <switch id="extremes" default="false" label="@string/extremes" />
+        <slider id="offsetx" default="0.0" min="0.0" max="4000.0" label="@string/offsetx" logscale="3.0"/>
+        <slider id="offsety" default="0.0" min="0.0" max="4000.0" label="@string/offsety" logscale="3.0" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = floor((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter+vec2(offsetx,offsety))/acLayerSize;
+            float c = overshoot; //clampRange? 1.0 : 2.0;
+            float t = freeze ? 1.0 : acTime;
+            if( mono ) {
+                float t = mod(t,2.8)+2.7;
+                float r = rand( st*t );
+                if( extremes ) r = step(0.5,r);
+                r = (r * amount * c) + 1.0 - amount;
+                gl_FragColor = vec4(vec3(r),1.0)*texColor;
+            } else {
+                float tr = mod(t,4.7)+2.87;
+                float tg = mod(t,2.8)+1.55;
+                float tb = mod(t,3.25)+6.271;
+                float r = rand( st*tr );
+                float g = rand( st*tg );
+                float b = rand( st*tb );
+                if( extremes ) r = step(0.5,r);
+                if( extremes ) g = step(0.5,g);
+                if( extremes ) b = step(0.5,b);
+                r = (r * amount * c) + 1.0 - amount;
+                g = (g * amount * c) + 1.0 - amount;
+                b = (b * amount * c) + 1.0 - amount;
+                gl_FragColor = vec4(vec3(r,g,b),1.0)*texColor;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

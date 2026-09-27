@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.dots2" name="@am:string/effect_dots_name" desc="@am:string/effect_dots_desc" category="procedural" tags="particle,procedural,random,raster" thumb="thumb/dots4.webp">
+
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="scale" default="1.0" min="0.01" max="100.0" step="0.01" label="@am:string/effect_param_scale" />
+        <spinner id="phase" default="0.0" min="-99.0" max="99.0" step="0.005" label="@am:string/effect_param_phase" />
+        <spinner id="radius" default="0.2" min="0.0" max="2.0" step="0.005" label="@am:string/effect_param_radius" ticks="0.5,1.0" />
+        <spinner id="feather" default="0.1" min="0.0" max="1.0" step="0.005" label="@am:string/effect_param_feather" />
+        <color id="color" default="#FFFFFFFF" label="@am:string/effect_param_color1" alpha="false" />
+        <color id="color2" default="#FF000000" label="@am:string/effect_param_color2" alpha="false" />
+        <slider id="density" default="12" min="1" max="13" label="@am:string/effect_param_density" step="1" type="integer" ticks="1,2,3,4,5,6,7,8,9,10,11,12,13" />
+        <point id="position" label="@am:string/effect_param_offset" />
+        <spinner id="fill" default="1.0" min="0.0" max="1.0" step="0.0025" type="percent" label="@am:string/effect_param_fill" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.0025" label="@am:string/effect_param_alpha" type="percent" />
+        <selector id="blendMode" style="dropdown" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+        <spinner id="slack" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_slack"  type="percent" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        //float rand(vec2 co)
+        //{
+        //    float a = 719.310;
+        //    float b = 178.233;
+        //    float c = 33758.5453;
+        //    float dt= dot(co.xy ,vec2(a,b));
+        //    float sn= mod(dt,3.14);
+        //    return fract(sin(sn) * c);
+        //}
+        //
+        //float rand_alt(vec2 co)
+        //{
+        //    float a = 317.541;
+        //    float b = 142.123;
+        //    float c = 31758.5362;
+        //    float dt= dot(co.xy ,vec2(a,b));
+        //    float sn= mod(dt,3.14);
+        //    return fract(sin(sn) * c);
+        //}
+        //
+        //vec2 rand2v(vec2 co) {
+        //    return vec2(rand(co),rand_alt(co));
+        //}
+
+
+        float random (in vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
+
+        // Based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            vec2 u = f * f * (3.0 - 2.0 * f);
+
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+        float fbm (vec2 st, vec2 parallax, int octaveCount, float intens) {
+            // Initial values
+            float value = 0.;
+            float amplitude = 0.5;
+            float frequency = 0.;
+            //
+            // Loop of octaves
+            for (int i = 0; i < octaveCount; i++) {
+                value += amplitude * noise(st);
+                st *= 2.0;
+                st += parallax;
+                amplitude *= intens;
+            }
+            return value;
+        }
+
+
+        vec2 rand2v(vec2 co) {
+            return vec2(noise(co),noise(co+vec2(613.312,736.019)));
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+
+            vec2 st = acLayerNorm.st;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st -= vec2(0.5,0.5);
+            st -= (position*vec2(1.0,-1.0)/1000.0);
+            st /= (scale*0.07);
+
+            vec2 tile = floor(st);
+            vec2 tpart = fract(st);
+
+            float maxDist = 100.0;
+            vec2 nearestTile = vec2(0.0,0.0);
+            float nearest_k = 0.;
+
+            int densitySteps = int(max(1.0,density-10.0));
+            float threshold = min(1.0,density/11.0);
+
+            float actualPhase = phase * 6.28318;
+
+            for( int i=-1; i<=1; i++ ) {
+                for( int j=-1; j<=1; j++ ) {
+                    vec2 checkTileOffs = vec2(float(i),float(j));
+                    for( int k=0; k<densitySteps; k++ ) {
+                        vec2 p = rand2v(tile + vec2(523.135,621.265)*float(k) + checkTileOffs + vec2(123.215,272.055)*seed);
+                        p = 0.5 + (0.5*sin(actualPhase + 6.2831*p)*max(0.00001,slack));
+                        float dist = length(checkTileOffs + p - tpart);
+                        vec2 tileId = checkTileOffs + tile;
+                        float flk = float(k);
+                        float ck = random(tileId + vec2(flk,-flk) + vec2(541.117,163.713)*(seed+0.1));
+                        if( dist < maxDist && ck<=threshold ) {
+                            maxDist = dist;
+                            nearest_k = float(k);
+                            nearestTile = tileId;
+                        }
+                    }
+                }
+            }
+
+            float colorPct =  random(nearestTile + vec2(nearest_k,-nearest_k) + vec2(721.117,433.215)*seed);
+
+            float intensity = smoothstep(1.0-radius,1.0-(radius*(1.0-feather)),1.-maxDist);
+
+            //intensity *= random(nearestTile + vec2(nearest_k,-nearest_k) + vec2(541.117,163.713)*seed) > threshold ? 0.0 : 1.0;
+
+            vec4 over = texColor * fill;
+            vec4 rcolor = mix(color,color2,colorPct)*intensity*texColor.a;
+
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*(rcolor.rgb/rcolor.a),1.0) * rcolor.a * texColor.a;
+                result = clamp(result,0.0,1.0);
+                result = result+(over*(1.0-result.a));
+                result = clamp(result,0.0,1.0);
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-(rcolor.rgb/rcolor.a))),1.0) * rcolor.a * texColor.a;
+                result = clamp(result,0.0,1.0);
+                result = result+(over*(1.0-result.a));
+                result = clamp(result,0.0,1.0);
+            } else {
+                result = rcolor+(over*(1.0-rcolor.a));
+            }
+            gl_FragColor = mix(over,result,alpha);
+
+
+            //gl_FragColor = result+(over*(1.0-result.a));
+        }
+
+    ]]></shader>
+
+</effect>

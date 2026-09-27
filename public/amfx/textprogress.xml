@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.textprogress" name="@am:string/effect_textprogress_name" desc="@am:string/effect_textprogress_desc" affinity="text!" type="text" category="text" tags="text,progress,essentials,kinetic,propAdjust" thumb="thumb/textprogress.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Text Progress</string>-->
+            <!--<string name="desc">Displays part of the text as a string</string>-->
+            <!--<string name="rel">Relative</string>-->
+            <!--<string name="frames">Frames</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="start" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_start" type="percent" step="0.001" />
+        <spinner id="end" default="1.0" min="0.0" max="1.0" label="@am:string/effect_param_end" type="percent" step="0.001" />
+        <selector id="cursor" default="0" style="dropdown" label="@am:string/effect_param_cursor" >
+            <choice label="@am:string/effect_param_none" value="0" />
+            <choice label="@am:string/effect_param_c1" value="1" />
+            <choice label="@am:string/effect_param_c2" value="2" />
+            <choice label="@am:string/effect_param_c3" value="3" />
+            <choice label="@am:string/effect_param_c4" value="4" />
+            <choice label="@am:string/effect_param_c5" value="5" />
+            <choice label="@am:string/effect_param_c6" value="6" />
+            <choice label="@am:string/effect_param_c7" value="7" />
+            <choice label="@am:string/effect_param_c8" value="8" />
+        </selector>
+        <switch id="blink" default="false" label="@am:string/effect_param_blinkCursor" />
+    </params>
+
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p,pprev) {
+
+            let cursor = p.cursor;
+            let cursorChar = "";
+            if( cursor==0 ) {
+                cursorChar = "";
+            } else if( cursor==1 ) {
+                cursorChar = "_";
+            } else if( cursor==2 ) {
+                cursorChar = "█";
+            } else if( cursor==3 ) {
+                cursorChar = "▌";
+            } else if( cursor==4 ) {
+                cursorChar = "▁";
+            } else if( cursor==5 ) {
+                cursorChar = "▏";
+            } else if( cursor==6 ) {
+                cursorChar = "▕";
+            } else if( cursor==7 ) {
+                cursorChar = "▯";
+            } else if( cursor==8 ) {
+                cursorChar = "▎";
+            }
+
+            if( p.blink ) {
+
+                if( Math.round(el.text.length * p.start) == Math.round(el.text.length * pprev.start) &&
+                    Math.round(el.text.length * p.end) == Math.round(el.text.length * pprev.end) ) {
+
+                    if( (env.time * env.duration * 2) % 2 > 1 ) cursorChar = "";
+
+                }
+            }
+
+            el.text = el.text.slice( Math.round(el.text.length * p.start), Math.round(el.text.length * p.end)) + cursorChar;
+
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

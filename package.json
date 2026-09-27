@@ -1,0 +1,22 @@
+{
+  "name": "motionary-am-web",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Alight Motion Web — UI mirip aplikasi AM + engine WebGL shader asli AM + ekspor MP4 frame-accurate",
+  "scripts": {
+    "start": "tsx server.ts",
+    "dev": "tsx server.ts",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.4",
+    "hono": "^4.8.5",
+    "jszip": "^3.10.1",
+    "mp4-muxer": "^5.2.2",
+    "playwright": "^1.63.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3"
+  }
+}

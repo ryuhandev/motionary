@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.flicker2" name="@am:string/effect_flicker_name" desc="@am:string/effect_flicker_desc" category="opacity" tags="opacity,visibility,auto,glitch,propAdjust" thumb="thumb/flicker.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Flicker</string>-->
+            <!--<string name="desc">Randomly adjusts the layer opacity.</string>-->
+            <!--<string name="freq">Frequency</string>-->
+            <!--<string name="mag">Strength</string>-->
+            <!--<string name="basis">Basis</string>-->
+            <!--<string name="time">Time</string>-->
+            <!--<string name="position">Position</string>-->
+            <!--<string name="seed">Seed</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="freq" default="7" min="0.05" max="10.0" label="@am:string/effect_param_freq" type="hz" />
+        <spinner id="mag" default="0.75" min="0" max="1" label="@am:string/effect_param_strength" />
+        <spinner id="seed" default="0" min="0" max="10" label="@am:string/effect_param_seed" />
+        <selector id="basis" default="0" style="radio" label="@am:string/effect_param_basis" >
+            <choice label="@am:string/effect_param_time" value="0" />
+            <choice label="@am:string/effect_param_position" value="1" />
+        </selector>
+
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let t = p.freq / 4.0;
+            let da, db, dc;
+            if( p.basis==0 ) {
+                da = AM.simplexNoise(t,0,p.seed);
+                db = AM.simplexNoise(0,t*2,p.seed);
+                dc = AM.simplexNoise(t*4+234.34,t*4+547.931,p.seed);
+            } else {
+                da = AM.simplexNoise(el.transform.location.x * p.freq / 500.0, el.transform.location.y * p.freq / 500.0, p.seed);
+                db = AM.simplexNoise(el.transform.location.x * p.freq * 2.0 / 500.0, el.transform.location.y * p.freq * 2.0 / 500.0, p.seed+7468.329);
+                dc = AM.simplexNoise(el.transform.location.x * p.freq * 4.0 / 500.0, el.transform.location.y * p.freq * 4.0 / 500.0, p.seed+3668.789);
+            }
+            let magSum = 1.0;
+            let mag = p.mag / 2.0;
+            magSum *= (1-mag) + (mag*da/2.0);
+            p.mag /= 2.0;
+            magSum *= (1-mag) + (mag*db);
+            p.mag /= 2.0;
+            magSum *= (1-mag) + (mag*dc);
+            el.alpha *= magSum;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>
+

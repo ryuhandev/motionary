@@ -1,0 +1,521 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.grunge"
+    name="@am:string/effect_grunge_name"
+    desc="@am:string/effect_grunge_desc"
+    category="procedural"
+    tags="texture,lighting,raster"
+    thumb="thumb/glowscan.webp"
+    experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="blurBuf" srcType="buffer" />
+        <texture id="grunge_a" srcType="image" src="resource/grunge_a.webp" />
+        <texture id="grunge_b" srcType="image" src="resource/grunge_b.webp" />
+        <spinner id="strength" default="0.35" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_edge_size" />
+
+        <section text="@am:string/effect_param_texture_1" hintType="editFirst" />
+        <switch id="t1active" default="true" label="@am:string/effect_param_texture_1" enableTargets="t1region" />
+        <selector id="t1region" default="1" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t1grain,t1scale,t1angle,t1offset,t1gamma,t1contrast,t1alpha,t1color,t1burn,t1invert,t1light,t1lightAngle,t1blendMode,t1choke,t1spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t1grain,t1scale,t1angle,t1offset,t1gamma,t1contrast,t1alpha,t1color,t1burn,t1invert,t1light,t1lightAngle,t1blendMode,t1choke,t1spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t1grain,t1scale,t1angle,t1offset,t1gamma,t1contrast,t1alpha,t1color,t1burn,t1invert,t1light,t1lightAngle,t1blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t1grain,t1scale,t1angle,t1offset,t1gamma,t1contrast,t1alpha,t1color,t1burn,t1invert,t1light,t1lightAngle,t1choke,t1spread" />
+        </selector>
+        <slider id="t1grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t1scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" enabled="false" />
+        <spinner id="t1angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t1offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t1gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t1contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t1alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t1color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t1burn" default="0.50" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t1spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t1choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t1invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t1light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t1lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t1blendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+        <section text="@am:string/effect_param_texture_2" />
+        <switch id="t2active" default="true" label="@am:string/effect_param_texture_2" enableTargets="t2region" />
+        <selector id="t2region" default="2" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t2grain,t2scale,t2angle,t2offset,t2gamma,t2contrast,t2alpha,t2color,t2burn,t2invert,t2light,t2lightAngle,t2blendMode,t2choke,t2spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t2grain,t2scale,t2angle,t2offset,t2gamma,t2contrast,t2alpha,t2color,t2burn,t2invert,t2light,t2lightAngle,t2blendMode,t2choke,t2spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t2grain,t2scale,t2angle,t2offset,t2gamma,t2contrast,t2alpha,t2color,t2burn,t2invert,t2light,t2lightAngle,t2blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t2grain,t2scale,t2angle,t2offset,t2gamma,t2contrast,t2alpha,t2color,t2burn,t2invert,t2light,t2lightAngle,t2choke,t2spread" />
+        </selector>
+        <slider id="t2grain" default="3" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t2scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" />
+        <spinner id="t2angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t2offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t2gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t2contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t2alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t2color" default="#FFFF6633" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t2burn" default="-.50" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t2spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t2choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t2invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t2light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t2lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t2blendMode" default="2" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+
+        <section text="@am:string/effect_param_texture_3" />
+        <switch id="t3active" default="false" label="@am:string/effect_param_texture_3" enableTargets="t3region" />
+        <selector id="t3region" default="3" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t3grain,t3scale,t3angle,t3offset,t3gamma,t3contrast,t3alpha,t3color,t3burn,t3invert,t3light,t3lightAngle,t3blendMode,t3choke,t3spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t3grain,t3scale,t3angle,t3offset,t3gamma,t3contrast,t3alpha,t3color,t3burn,t3invert,t3light,t3lightAngle,t3blendMode,t3choke,t3spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t3grain,t3scale,t3angle,t3offset,t3gamma,t3contrast,t3alpha,t3color,t3burn,t3invert,t3light,t3lightAngle,t3blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t3grain,t3scale,t3angle,t3offset,t3gamma,t3contrast,t3alpha,t3color,t3burn,t3invert,t3light,t3lightAngle,t3choke,t3spread" />
+        </selector>
+        <slider id="t3grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t3scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" enabled="false" />
+        <spinner id="t3angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t3offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t3gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t3contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t3alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t3color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t3burn" default="0.00" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t3spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t3choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t3invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t3light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t3lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t3blendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+
+        <section text="@am:string/effect_param_texture_4" />
+        <switch id="t4active" default="false" label="@am:string/effect_param_texture_4" enableTargets="t4region" />
+        <selector id="t4region" default="3" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t4grain,t4scale,t4angle,t4offset,t4gamma,t4contrast,t4alpha,t4color,t4burn,t4invert,t4light,t4lightAngle,t4blendMode,t4choke,t4spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t4grain,t4scale,t4angle,t4offset,t4gamma,t4contrast,t4alpha,t4color,t4burn,t4invert,t4light,t4lightAngle,t4blendMode,t4choke,t4spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t4grain,t4scale,t4angle,t4offset,t4gamma,t4contrast,t4alpha,t4color,t4burn,t4invert,t4light,t4lightAngle,t4blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t4grain,t4scale,t4angle,t4offset,t4gamma,t4contrast,t4alpha,t4color,t4burn,t4invert,t4light,t4lightAngle,t4choke,t4spread" />
+        </selector>
+        <slider id="t4grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t4scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" enabled="false" />
+        <spinner id="t4angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t4offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t4gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t4contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t4alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t4color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t4burn" default="0.00" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t4spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t4choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t4invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t4light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t4lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t4blendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+
+        <section text="@am:string/effect_param_texture_5" />
+        <switch id="t5active" default="false" label="@am:string/effect_param_texture_5" enableTargets="t5region" enabled="false" />
+        <selector id="t5region" default="3" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t5grain,t5scale,t5angle,t5offset,t5gamma,t5contrast,t5alpha,t5color,t5burn,t5invert,t5light,t5lightAngle,t5blendMode,t5choke,t5spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t5grain,t5scale,t5angle,t5offset,t5gamma,t5contrast,t5alpha,t5color,t5burn,t5invert,t5light,t5lightAngle,t5blendMode,t5choke,t5spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t5grain,t5scale,t5angle,t5offset,t5gamma,t5contrast,t5alpha,t5color,t5burn,t5invert,t5light,t5lightAngle,t5blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t5grain,t5scale,t5angle,t5offset,t5gamma,t5contrast,t5alpha,t5color,t5burn,t5invert,t5light,t5lightAngle,t5choke,t5spread" />
+        </selector>
+        <slider id="t5grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t5scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" enabled="false" />
+        <spinner id="t5angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t5offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t5gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t5contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t5alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t5color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t5burn" default="0.00" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t5spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t5choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t5invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t5light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t5lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t5blendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+
+        <section text="@am:string/effect_param_texture_6" />
+        <switch id="t6active" default="false" label="@am:string/effect_param_texture_6" enableTargets="t6region" />
+        <selector id="t6region" default="3" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t6grain,t6scale,t6angle,t6offset,t6gamma,t6contrast,t6alpha,t6color,t6burn,t6invert,t6light,t6lightAngle,t6blendMode,t6choke,t6spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t6grain,t6scale,t6angle,t6offset,t6gamma,t6contrast,t6alpha,t6color,t6burn,t6invert,t6light,t6lightAngle,t6blendMode,t6choke,t6spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t6grain,t6scale,t6angle,t6offset,t6gamma,t6contrast,t6alpha,t6color,t6burn,t6invert,t6light,t6lightAngle,t6blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t6grain,t6scale,t6angle,t6offset,t6gamma,t6contrast,t6alpha,t6color,t6burn,t6invert,t6light,t6lightAngle,t6choke,t6spread" />
+        </selector>
+        <slider id="t6grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t6scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" enabled="false" />
+        <spinner id="t6angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t6offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t6gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t6contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t6alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t6color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t6burn" default="0.00" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t6spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t6choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t6invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t6light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t6lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t6blendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+        <section text="@am:string/effect_param_texture_7" />
+        <switch id="t7active" default="false" label="@am:string/effect_param_texture_7" enableTargets="t7region" />
+        <selector id="t7region" default="3" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t7grain,t7scale,t7angle,t7offset,t7gamma,t7contrast,t7alpha,t7color,t7burn,t7invert,t7light,t7lightAngle,t7blendMode,t7choke,t7spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t7grain,t7scale,t7angle,t7offset,t7gamma,t7contrast,t7alpha,t7color,t7burn,t7invert,t7light,t7lightAngle,t7blendMode,t7choke,t7spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t7grain,t7scale,t7angle,t7offset,t7gamma,t7contrast,t7alpha,t7color,t7burn,t7invert,t7light,t7lightAngle,t7blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t7grain,t7scale,t7angle,t7offset,t7gamma,t7contrast,t7alpha,t7color,t7burn,t7invert,t7light,t7lightAngle,t7choke,t7spread" />
+        </selector>
+        <slider id="t7grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t7scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" enabled="false" />
+        <spinner id="t7angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t7offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t7gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t7contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t7alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t7color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t7burn" default="0.00" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t7spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t7choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t7invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t7light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t7lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t7blendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+        <section text="@am:string/effect_param_texture_8" />
+        <switch id="t8active" default="false" label="@am:string/effect_param_texture_8" enableTargets="t8region" />
+        <selector id="t8region" default="3" style="radio" enabled="false" >
+            <choice label="@am:string/effect_param_edge" value="1" enableTargets="t8grain,t8scale,t8angle,t8offset,t8gamma,t8contrast,t8alpha,t8color,t8burn,t8invert,t8light,t8lightAngle,t8blendMode,t8choke,t8spread" />
+            <choice label="@am:string/effect_param_center" value="2" enableTargets="t8grain,t8scale,t8angle,t8offset,t8gamma,t8contrast,t8alpha,t8color,t8burn,t8invert,t8light,t8lightAngle,t8blendMode,t8choke,t8spread" />
+            <choice label="@am:string/effect_param_fill" value="3" enableTargets="t8grain,t8scale,t8angle,t8offset,t8gamma,t8contrast,t8alpha,t8color,t8burn,t8invert,t8light,t8lightAngle,t8blendMode" />
+            <choice label="@am:string/effect_param_glow" value="4" enableTargets="t8grain,t8scale,t8angle,t8offset,t8gamma,t8contrast,t8alpha,t8color,t8burn,t8invert,t8light,t8lightAngle,t8choke,t8spread" />
+        </selector>
+        <slider id="t8grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" enabled="false" />
+        <spinner id="t8scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" enabled="false" />
+        <spinner id="t8angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <point id="t8offset" label="@am:string/effect_param_offset" enabled="false" />
+        <spinner id="t8gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" enabled="false" />
+        <spinner id="t8contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" enabled="false" />
+        <spinner id="t8alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" enabled="false" />
+        <color id="t8color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="t8burn" default="0.00" min="-1.0" max="1" label="@am:string/effect_param_dodge_burn" enabled="false" />
+        <spinner id="t8spread" default="0.00" min="0.0" max="1" label="@am:string/effect_param_spread" enabled="false" />
+        <spinner id="t8choke" default="0.00" min="0.0" max="1" label="@am:string/effect_param_choke" enabled="false" />
+        <switch id="t8invert" default="false" label="@am:string/effect_param_invert_grain" enabled="false" />
+        <switch id="t8light" default="false" label="@am:string/effect_param_directional_shading" enabled="false" />
+        <spinner id="t8lightAngle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_shading_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" enabled="false" />
+        <selector id="t8blendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" enabled="false" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+            <choice label="@am:string/effect_param_punchout" value="3" />
+            <choice label="@am:string/effect_param_copy_original" value="4" />
+        </selector>
+
+        <section text="@am:string/effect_param_displacement_1" />
+        <switch id="d1active" default="false" label="@am:string/effect_param_displacement_1" enableTargets="d1region,d1offset,d1fromctr,d1grain,d1scale,d1angle,d1toffset,d1gamma,d1contrast" />
+        <selector id="d1region" default="2" style="radio" >
+            <choice label="@am:string/effect_param_edge" value="1" />
+            <choice label="@am:string/effect_param_center" value="2" />
+            <choice label="@am:string/effect_param_fill" value="3" />
+        </selector>
+        <point id="d1offset" label="@am:string/effect_param_offset" />
+        <switch id="d1fromctr" default="true" label="@am:string/effect_param_from_center" />
+        <slider id="d1grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" />
+        <spinner id="d1scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" />
+        <spinner id="d1angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <point id="d1toffset" label="@am:string/effect_param_texture_offset" />
+        <spinner id="d1gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" />
+        <spinner id="d1contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" />
+
+        <section text="@am:string/effect_param_displacement_2" />
+        <switch id="d2active" default="false" label="@am:string/effect_param_displacement_2" enableTargets="d2region,d2offset,d2fromctr,d2grain,d2scale,d2angle,d2toffset,d2gamma,d2contrast" />
+        <selector id="d2region" default="2" style="radio" >
+            <choice label="@am:string/effect_param_edge" value="1" />
+            <choice label="@am:string/effect_param_center" value="2" />
+            <choice label="@am:string/effect_param_fill" value="3" />
+        </selector>
+        <point id="d2offset" label="@am:string/effect_param_offset" />
+        <switch id="d2fromctr" default="true" label="@am:string/effect_param_from_center" />
+        <slider id="d2grain" default="1" min="1" max="16" label="@am:string/effect_param_grain" step="1" type="integer" />
+        <spinner id="d2scale" default="1.0" min="0.01" max="50.0" label="@am:string/effect_param_scale" step="0.01" snap="1" ticks="1" />
+        <spinner id="d2angle" default="0.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <point id="d2toffset" label="@am:string/effect_param_texture_offset" />
+        <spinner id="d2gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" />
+        <spinner id="d2contrast" default="0.0" min="-1.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_contrast" />
+
+        <section text="@am:string/effect_param_solid_color_overlay" />
+        <switch id="c1active" default="false" label="@am:string/effect_param_solid_color_overlay" enableTargets="fillColor,fillColorBlend" />
+        <color id="fillColor" default="#FF777777" label="@am:string/effect_param_color" alpha="false" />
+        <slider id="fillColorBlend" default="0" min="0" max="1" label="@am:string/effect_param_amount" step="0.01" type="percent" />
+
+    </params>
+
+    <passes>
+        <pass target="blurBuf" effect="com.alightcreative.effects.gaussianblur"/>
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        mat2 rot2(float a) {
+            float c = cos(a);
+            float s = sin(a);
+            return mat2(c,s,-s,c);
+        }
+
+        vec4 composite( vec4 a, vec4 b) {
+            return a * (1. - b.a) + b;
+        }
+
+        float sampleGrain(vec2 uv, int grainType, float gamma, float contrast, float scale, float angle, vec2 offset, bool invert) {
+
+            uv -= 0.5;
+            uv *= rot2(angle*0.0174533);
+            uv /= scale;
+            uv += 0.5;
+            uv -= offset * vec2(1., -1.) / 500.;
+            uv = fract(uv);
+
+            float grainLuma;
+            if( grainType == 1 ) {
+                grainLuma = texture2D(grunge_a.texture,uv).r;
+            } else if( grainType == 2 ) {
+                grainLuma = texture2D(grunge_a.texture,uv).g;
+            } else if( grainType == 3 ) {
+                grainLuma = texture2D(grunge_a.texture,uv).b;
+            } else if( grainType == 4 ) {
+                grainLuma = texture2D(grunge_b.texture,uv).r;
+            } else if( grainType == 5 ) {
+                grainLuma = texture2D(grunge_b.texture,uv).g;
+            } else if( grainType == 6 ) {
+                grainLuma = texture2D(grunge_b.texture,uv).b;
+            } else if( grainType == 7 ) {
+                grainLuma = dot(texture2D(grunge_a.texture,uv).rgb, vec3(1.)) / 3.;
+            } else if( grainType == 8 ) {
+                grainLuma = dot(texture2D(grunge_b.texture,uv).rgb, vec3(1.)) / 3.;
+            } else if( grainType == 9 ) {
+                grainLuma = dot(texture2D(grunge_b.texture,uv).rb, vec2(1.)) / 2.;
+            } else if( grainType == 10 ) {
+                uv *= 16.;
+                vec2 st = fract(uv);
+                vec2 id = floor(uv);
+                if( mod(id.x + id.y,2.) == 0. ) {
+                    st = st.yx;
+                }
+                float pp = 6.;
+                float p = pow(sin(st.x*3.14159*1.),pp);
+                st = st.yx;
+                float q = clamp(pow(sin(st.x*3.14159*1.),pp),0.,1.);
+                p += q * pow((1.-p),10.);
+                grainLuma = p;
+            } else if( grainType == 11 ) {
+                vec2 st = uv * 16.;
+                vec2 id = floor(st);
+                st = fract(st);
+                if( mod(id.x + id.y,2.) == 0. ) {
+                    st = st.yx;
+                }
+                float pp = 6.;
+                float p = pow(sin(st.x*3.14159*1.),pp);
+                st = st.yx;
+                float q = clamp(pow(sin(st.x*3.14159*1.),pp),0.,1.);
+                p += q * pow((1.-p),10.);
+                p = saturate(p);
+                float tc = texture2D(grunge_b.texture,uv).b;
+                grainLuma = p * abs(p-tc); //p - (tc * (1.-p));
+            } else if( grainType == 12 ) {
+                grainLuma = sin(uv.y*30.*3.14159)*0.5+0.5;
+            } else if( grainType == 13 ) {
+                grainLuma = min(sin(uv.y*30.*3.14159)*0.5+0.5,sin(uv.x*30.*3.14159)*0.5+0.5);
+            } else if( grainType == 14 ) {
+                grainLuma = (sin(uv.y*30.*3.14159)*sin(uv.x*30.*3.14159))*0.5+0.5;
+            } else if( grainType == 15 ) {
+                grainLuma = uv.y;
+            } else if( grainType == 16 ) {
+                grainLuma = 1.0;
+            } else {
+                grainLuma = 0.5;
+            }
+
+            grainLuma = saturate(((grainLuma-0.5) * (1.+contrast)) + 0.5);
+            grainLuma = pow(grainLuma,1.0/gamma);
+            if( invert )
+                grainLuma = 1.-grainLuma;
+
+            return grainLuma;
+
+        }
+
+        vec2 applyDisplace(vec2 displace, vec4 blurColor, vec2 offset, bool fromCtr, int region, vec2 uv, int grainType, float gamma, float contrast, float scale, float angle, vec2 texOffset) {
+
+            float p;
+            if( region == 1) {  // Edge
+                p = 1. - saturate((blurColor.a-0.5) * 2.);
+            } else if( region == 2 ) {  // Center
+                p = saturate((blurColor.a-0.5) * 2.);
+            } else if( region == 3 ) {  // Fill
+                p = 1.;
+            } else {
+                p = 0.;
+            }
+
+            float g = sampleGrain( uv, grainType, gamma, contrast, scale, angle, texOffset, false);
+
+            if( fromCtr ) {
+                g = (g - 0.5) * 2.;
+            }
+
+            return displace + (offset * vec2(1.,-1.) / 2000.) * g * p;
+        }
+
+        vec4 blendGrain(vec4 baseColor, vec4 originalColor, vec4 blurColor, vec4 color, float alpha, int blendMode, int region, float spread, float rawChoke, float burn, vec2 uv, int grainType, float gamma, float contrast, float scale, float angle, vec2 offset, bool invert, bool light, float lightAngle) {
+
+            float choke = clamp(rawChoke,0.,0.999);
+
+            float p;
+            float m;
+            if( region == 1) {  // Edge
+                m = baseColor.a;
+                p = 1. - saturate((blurColor.a-0.5) * 2.);
+            } else if( region == 2 ) {  // Center
+                m = baseColor.a;
+                p = saturate((blurColor.a-0.5) * 2.);
+            } else if( region == 3 ) {  // Fill
+                m = baseColor.a;
+                p = 1.;
+            } else if( region == 4 ) {  // Glow
+                m = 1.-baseColor.a;
+                p = saturate(blurColor.a * 2. - baseColor.a);
+            } else {
+                m = 0.;
+                p = 0.;
+            }
+
+            p = saturate((p-choke)/(max(1.-spread,choke+0.0001)-choke));
+            float g;
+            if( light ) {
+                vec2 lv = vec2(.002, 0.) * rot2(lightAngle*0.0174533);
+                float g1 = sampleGrain( uv+lv, grainType, gamma, contrast, scale, angle, offset, invert);
+                float g2 = sampleGrain( uv-lv, grainType, gamma, contrast, scale, angle, offset, invert);
+                g = saturate((g1-g2)*5.);
+            } else {
+                g = sampleGrain( uv, grainType, gamma, contrast, scale, angle, offset, invert);
+            }
+
+            vec4 c = color;
+            if( burn < 0.0 ) {
+                c.rgb = mix(c.rgb, 1.-(1.-c.rgb) * (1.-(0.5+c.rgb*0.5)), -burn * g*g );
+            } else {
+                c.rgb = mix(c.rgb, c.rgb * c.rgb * 0.25, burn * g * g );
+            }
+            c *= alpha * p * g;
+
+            if( region==4 ) {
+                return composite(baseColor,c * m);
+            } else if( blendMode==1 ) { // Multiply
+                vec3 baseRgb = baseColor.rgb / max(baseColor.a,0.00001);;
+                vec3 rgb = c.rgb / max(c.a,0.00001);
+                vec3 adj = baseRgb * rgb;
+                return composite(baseColor,vec4(adj,1.) * c.a * baseColor.a);
+            } else if( blendMode==2 ) { // Screen
+                vec3 baseRgb = baseColor.rgb / max(baseColor.a,0.00001);;
+                vec3 rgb = c.rgb / max(c.a,0.00001);
+                vec3 adj = 1. - ((1.-baseRgb) * (1.-rgb));
+                return composite(baseColor,vec4(adj,1.) * c.a * baseColor.a);
+            } else if( blendMode==3 ) { // Punch out
+                return baseColor * (1.-c.a);
+            } else if( blendMode==4 ) { // Punch out
+                return composite(baseColor,originalColor * (c.a * m));
+            } else { // Normal
+                return composite(baseColor,c * m);
+            }
+
+        }
+
+        void main() {
+
+            vec4 blurTexColor = texture2DCv(blurBuf.texture,acScreenNorm);
+            vec2 uv = acLayerNorm;
+            uv.x *= acLayerSize.x / acLayerSize.y;
+
+            vec2 displace = vec2(0.);
+
+            displace = applyDisplace(displace,blurTexColor,d1offset,d1fromctr,d1region,uv,int(d1grain),d1gamma,d1contrast,d1scale,d1angle,d1toffset);
+            uv += displace;
+            displace = applyDisplace(displace,blurTexColor,d2offset,d2fromctr,d2region,uv,int(d2grain),d2gamma,d2contrast,d2scale,d2angle,d2toffset);
+            uv += displace;
+
+            displace.x *= acScreenSize.x / acScreenSize.y;
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm + displace);
+
+            texColor = mix(texColor,fillColor*texColor.a,fillColorBlend);
+
+            vec4 result = texColor;
+
+            result = blendGrain(result, texColor, blurTexColor, t1color, t1alpha, t1blendMode, t1active ? t1region : 0, t1spread, t1choke, t1burn, uv, int(t1grain), t1gamma, t1contrast, t1scale, t1angle, t1offset, t1invert, t1light, t1lightAngle);
+            result = blendGrain(result, texColor, blurTexColor, t2color, t2alpha, t2blendMode, t2active ? t2region : 0, t2spread, t2choke, t2burn, uv, int(t2grain), t2gamma, t2contrast, t2scale, t2angle, t2offset, t2invert, t2light, t2lightAngle);
+            result = blendGrain(result, texColor, blurTexColor, t3color, t3alpha, t3blendMode, t3active ? t3region : 0, t3spread, t3choke, t3burn, uv, int(t3grain), t3gamma, t3contrast, t3scale, t3angle, t3offset, t3invert, t3light, t3lightAngle);
+            result = blendGrain(result, texColor, blurTexColor, t4color, t4alpha, t4blendMode, t4active ? t4region : 0, t4spread, t4choke, t4burn, uv, int(t4grain), t4gamma, t4contrast, t4scale, t4angle, t4offset, t4invert, t4light, t4lightAngle);
+            result = blendGrain(result, texColor, blurTexColor, t5color, t5alpha, t5blendMode, t5active ? t5region : 0, t5spread, t5choke, t5burn, uv, int(t5grain), t5gamma, t5contrast, t5scale, t5angle, t5offset, t5invert, t5light, t5lightAngle);
+            result = blendGrain(result, texColor, blurTexColor, t6color, t6alpha, t6blendMode, t6active ? t6region : 0, t6spread, t6choke, t6burn, uv, int(t6grain), t6gamma, t6contrast, t6scale, t6angle, t6offset, t6invert, t6light, t6lightAngle);
+            result = blendGrain(result, texColor, blurTexColor, t7color, t7alpha, t7blendMode, t7active ? t7region : 0, t7spread, t7choke, t7burn, uv, int(t7grain), t7gamma, t7contrast, t7scale, t7angle, t7offset, t7invert, t7light, t7lightAngle);
+            result = blendGrain(result, texColor, blurTexColor, t8color, t8alpha, t8blendMode, t8active ? t8region : 0, t8spread, t8choke, t8burn, uv, int(t8grain), t8gamma, t8contrast, t8scale, t8angle, t8offset, t8invert, t8light, t8lightAngle);
+
+            gl_FragColor = result;
+
+        }
+
+    ]]></shader>
+
+</effect>

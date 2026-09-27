@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effect.morphpath" name="@am:string/effect_morphpath_name" desc="@am:string/effect_morphpath_desc" category="transform" thumb="thumb/movealongpath.webp" experimental="true">
+
+    <params>
+        <spinner id="progress" default="0.0" min="0.0" max="1.0" type="percent"  step="0.001" label="@am:string/effect_param_progress" ticks="-1.0,0.0,1.0" />
+    </params>
+
+    <script external="com.alightcreative.script.morphpath" />
+
+</effect>

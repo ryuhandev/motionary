@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.spinblur2" name="@am:string/effect_spinblur_name" desc="@am:string/effect_spinblur_desc" category="blur" tags="blur,raster,membersOnly" thumb="thumb/spinblur.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Spin Blur</string>-->
+            <!--<string name="desc">Applies an angular blur to the layer, as though spinning</string>-->
+            <!--<string name="angle">Angle</string>-->
+            <!--<string name="center">Center</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="angle" default="5" min="0.0" max="60.0" label="@am:string/effect_param_angle" step="0.1" type="angle" />
+        <!--<slider id="radius" default="0.15" min="0.0" max="1.0" label="@string/radius" />-->
+        <!--<slider id="cx" default="0.5" min="0.0" max="1.0" label="X" ticks="0.5" snap="0.5" />-->
+        <!--<slider id="cy" default="0.5" min="0.0" max="1.0" label="Y" ticks="0.5" snap="0.5" />-->
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            vec2 image_size = getTexSize(inputImg.size);
+            vec2 texelSize = 1.0 / image_size;
+            vec2 relCenter = vec2(0.5 + centerPoint.x/500., 0.5 - centerPoint.y/500.);
+            vec2 center = (vec4(relCenter,0.0,1.0) * acLayerToScreen).xy;
+            vec2 v = acScreenNorm.st - center;
+            v.y *= image_size.y / image_size.x;
+            float r = length(v);
+            float d = 6.283185*r;
+            float l = d*angle/360.0;
+            float a = angle * 0.0174533;
+            float amin = a/2.0;
+            float speed = l/texelSize.x;
+            int nSamples = int(clamp(speed, 1.01, 100.01));
+            vec4 outColor = texture2DCv(inputImg.texture,acScreenNorm.st);
+            for(int i=1; i<nSamples; i++ ) {
+                float sampleAngle = -amin + a * float(i)/float(nSamples);
+                float s = sin(sampleAngle);
+                float c = cos(sampleAngle);
+                mat2 rot = mat2(c, -s, s, c);
+                vec2 temp = v*rot;
+                temp.y = temp.y * image_size.x / image_size.y;
+                outColor += texture2DCv(inputImg.texture, center + temp);
+            }
+            gl_FragColor = outColor/float(nSamples);
+        }
+
+    ]]></shader>
+
+</effect>

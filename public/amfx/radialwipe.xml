@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.radialwipe" name="@am:string/effect_radialwipe_name" desc="@am:string/effect_radialwipe_desc" category="matte" tags="mask,matte,raster" thumb="thumb/radialwipe.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="progress" default="45.0" min="0.0" max="360.0" step="1" label="@am:string/effect_param_progress" type="angle" />
+        <spinner id="offset" default="0.0" min="-3600.0" max="3600.0" step="1" label="@am:string/effect_param_startangle" type="angle" />
+        <!--<spinner id="start" default="0.0" min="-3600.0" max="3600.0" step="0.1" label="@am:string/effect_param_start" type="angle" />-->
+        <!--<spinner id="end" default="0.0" min="-3600.0" max="3600.0" step="0.1" label="@am:string/effect_param_end" type="angle" />-->
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="feather" default="0.0" min="0.0" max="100.0" step="0.1" label="@am:string/effect_param_feather" />
+        <!--<switch id="reverse" default="false" label="@am:string/effect_param_reverse" />-->
+        <selector id="direction" style="radio" default="0" label="@am:string/effect_param_direction">
+            <choice label="@am:string/effect_param_angledir_clockwise" value="0" />
+            <choice label="@am:string/effect_param_angledir_counter_clockwise" value="1" />
+            <choice label="@am:string/effect_param_angledir_both" value="2" />
+        </selector>
+        <slider id="repeatCount" default="1" min="1" max="16" label="@am:string/effect_param_count" step="1" type="integer" ticks="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        vec2 project(vec2 a, vec2 b) {
+            return (dot(a,b)/dot(b,b)) * b;
+        }
+
+        const float twopi = 6.2831853072;
+
+        void main() {
+            vec2 st = acLayerNorm;
+            st.y = 1. - st.y;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st -= centerPoint / 1200.0;
+
+            float adjProgress = (direction==1) ? 360.0-progress : progress;
+
+            float start = 0.0;
+            float end = adjProgress;
+
+            end -= 180.0;
+            end *= (360.0+feather)/360.0;
+            end += 180.0;
+
+            float offsetRad = (offset-90.0+(direction==2?end/2.0/repeatCount:0.0)) * 0.0174533;
+            mat2 offsetRot = mat2(cos(offsetRad),-sin(offsetRad),sin(offsetRad),cos(offsetRad));
+
+            st *= offsetRot;
+
+            float adjFeather = max(0.01,feather * 0.0174533);
+            float halfFeather = adjFeather / 2.0;
+
+            float startRad = start * 0.0174533;
+            float endRad= end * 0.0174533;
+
+            float a = atan(st.y,st.x) + 3.14159;
+
+            a = mod(a * repeatCount,twopi);
+
+            float p0 = smoothstep(adjFeather,0.0,a);
+            float p1 = smoothstep(endRad-halfFeather,endRad+halfFeather,a); // a<adjFeather?a+twopi:
+            float p2 = smoothstep(endRad-twopi+halfFeather,endRad-twopi-halfFeather,a); // a<adjFeather?a+twopi:
+            float pp = adjProgress<=0.0001?1.0:adjProgress>=359.999?0.0:min(1.0,p1+p0-p2);
+            if( direction==1 ) {
+                pp = 1.0-pp;
+            }
+            gl_FragColor = texture2DCv(inputImg.texture,acScreenNorm.st)*pp;
+        }
+
+    ]]></shader>
+
+</effect>

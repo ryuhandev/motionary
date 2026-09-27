@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.pagecurl"
+    name="@am:string/effect_page_curl_name"
+    desc="@am:string/effect_page_curl_desc"
+    category="3d"
+    tags="raster,3d"
+    thumb="thumb/glowscan.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="blurBuf" srcType="buffer" />
+        <spinner id="progress" default=".4" min="0.0" max="2" label="@am:string/effect_param_progress" step="0.01" type="percent" snap="1.0" ticks="1.0" />
+        <spinner id="radius" default=".1" min="0.0" max="10" label="@am:string/effect_param_radius" step="0.001" />
+        <spinner id="angle" default="38.0" min="-3600.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <spinner id="alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" />
+        <spinner id="strength" default="0.1" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_blur" />
+
+        <section text="@am:string/effect_param_back_of_layer" />
+        <color id="backColor" default="#FF888888" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="backAlpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" />
+        <selector id="backBlendMode" default="1" style="dropdown" label="@am:string/effect_param_blendmode" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+
+        <section text="@am:string/effect_param_shine" />
+        <color id="shineColor" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="shineAlpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" />
+        <spinner id="shineSpec" default="30.0" min="1.0" max="150.0" label="@am:string/effect_param_specularity" step="0.5" ticks="30.0" />
+        <selector id="shineBlendMode" default="2" style="dropdown" label="@am:string/effect_param_blendmode" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+
+        <section text="@am:string/effect_param_drop_shadow" />
+        <color id="dropShadowColor" default="#FF000000" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="dropShadowAlpha" default="0.80" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" />
+        <switch id="softDropShadow" label="@am:string/effect_param_soft_edges" default="true" />
+
+        <section text="@am:string/effect_param_front_shadow" />
+        <color id="frontShadowColor" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="frontShadowAlpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" />
+        <selector id="frontShadowBlendMode" default="2" style="dropdown" label="@am:string/effect_param_blendmode" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+
+    </params>
+
+    <passes>
+        <pass target="blurBuf" effect="com.alightcreative.effects.gaussianblur"/>
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        mat2 rot2(float a) {
+            float c = cos(a);
+            float s = sin(a);
+            return mat2(c,s,-s,c);
+        }
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+        
+        vec4 composite(vec4 a, vec4 b) {
+            return a * (1.-b.a) + b;
+        }
+
+
+        // Created by Eduardo Castineyra - casty/2015
+        // Creative Commons Attribution 4.0 International License
+        // https://www.shadertoy.com/view/MtBSzR
+
+        #define M_PI 3.141592
+        #define CYL_DIST (cyl.z)
+
+        /// 1D function x: cylFun(t); y: normal at that point.
+        vec2 curlFun(float t, float maxt, vec3 cyl) {
+            vec2 ret = vec2(t, 1.0);
+            if (t < CYL_DIST - radius)
+                return ret;                    /// Before the curl
+            if (t > CYL_DIST + radius)
+                return vec2(-1.0);            /// After the curl
+            
+            /// Inside the curl
+            float a = asin((t - CYL_DIST) / radius);
+            float ca = -a + M_PI;
+            ret.x = CYL_DIST + ca * radius;
+            ret.y = cos(ca);
+            
+            if (ret.x < maxt)
+                return ret;                    /// We see the back face
+
+            if (t < CYL_DIST)
+                return vec2(t, 1.0);        /// Front face before the curve starts
+            ret.y = cos(a);
+            ret.x = CYL_DIST + a * radius;
+            return ret.x < maxt ? ret : vec2(-1.0);  /// Front face curve
+        }
+
+        vec2 curlFunFront(float t, float maxt, vec3 cyl) {
+            vec2 ret = vec2(t, 1.0);
+            if (t < CYL_DIST - radius)
+                return ret;                    /// Before the curl
+            if (t > CYL_DIST + radius)
+                return vec2(-1.0);            /// After the curl
+
+            /// Inside the curl
+            float a = asin((t - CYL_DIST) / radius);
+            float ca = -a + M_PI;
+            ret.x = CYL_DIST + ca * radius;
+            ret.y = cos(ca);
+
+            if (t < CYL_DIST)
+                return vec2(t, 1.0);        /// Front face before the curve starts
+            ret.y = cos(a);
+            ret.x = CYL_DIST + a * radius;
+            return ret.x < maxt ? ret : vec2(-1.0);  /// Front face curve
+        }
+
+        vec4 blendColor( vec4 base, vec4 color, int mode, float p) {
+            if( mode == 1 ) {           // Multiply
+                vec3 aa = base.rgb / max(base.a,0.00001);
+                vec3 bb = color.rgb / max(color.a,0.00001);
+                vec3 cc = aa * bb;
+                vec4 adjColor = vec4(cc,1.) * color.a * p;
+                return base * (1.-adjColor.a) + adjColor;
+            } else if( mode == 2 ) {    // Screen
+                vec3 aa = base.rgb / max(base.a,0.00001);
+                vec3 bb = color.rgb / max(color.a,0.00001);
+                vec3 cc = 1.-((1.-aa) * (1.-bb));
+                vec4 adjColor = vec4(cc,1.) * color.a * p;
+                return base * (1.-adjColor.a) + adjColor;
+            } else {                    // Normal
+                vec4 adjColor = color * p;
+                return base * (1.-adjColor.a) + adjColor;
+            }
+        }
+
+        void main() {
+        
+            vec2 uv = acLayerNorm;
+            vec2 ur = vec2(1.0);//, acScreenSize.y/acScreenSize.x);
+            float h = sqrt(tan(M_PI/4.-abs(mod(angle*0.0174533,M_PI/2.)-M_PI/4.))+1.);
+            float d = (1.-progress) * h;//((progress-0.5) * h)+0.5;
+            d = 1.-((1.0-d) * (1.+radius));
+            vec2 cd = vec2(1.0,0.0)*rot2(angle*0.0174533);
+            vec2 iv = step(cd,vec2(0.));
+            uv = iv + uv * (1.-iv*2.);
+            
+            vec3 cyl = vec3(abs(cd),d);
+
+            d = dot(uv, cyl.xy);
+            vec2 end = abs((ur - uv) / cyl.xy);
+            float maxt = d + min(end.x, end.y);
+            vec2 cff = curlFunFront(d, maxt, cyl);
+            vec2 cf = curlFun(d, maxt, cyl);
+            vec2 tuv = uv + cyl.xy * (cf.x - d);
+            vec2 tuvf = uv + cyl.xy * (cff.x - d);
+
+            tuv /= ur;
+            tuv = iv + tuv * (1.-iv*2.);
+            tuvf /= ur;
+            tuvf = iv + tuvf * (1.-iv*2.);
+
+            float shadow = 1.0 - smoothstep (0.0, radius * 2.0, -(d - CYL_DIST));
+            shadow *= (smoothstep(-radius, radius, (maxt - (cf.x + 1.5 * M_PI * radius + radius))));
+            
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 blurColor = texture2DCv(blurBuf.texture,acScreenNorm);
+            vec4 frontColor = texture2DCv(inputImg.texture,l2s(tuvf));
+            vec4 result = texture2DCv(inputImg.texture,l2s(tuv));
+
+            vec4 front = blendColor(frontColor, frontShadowColor * frontShadowAlpha * frontColor.a, frontShadowBlendMode, saturate(1.0 - cff.y)  );
+            result = cf.y > 0.0
+                ? front
+                : blendColor(
+                    blendColor(
+                        composite(front,mix(texColor * (1.-blurColor.a)+blurColor,result,alpha)),
+                        backColor * backAlpha * result.a, backBlendMode, 1. * step(uv.x,1.) * step(uv.y,1.)
+                    ),
+                    shineColor * shineAlpha * result.a, shineBlendMode, pow(-cf.y,shineSpec) * step(uv.x,1.) * step(uv.y,1.)
+                );
+            
+            shadow = smoothstep (0.0, radius * 2.0, (d - CYL_DIST));
+            
+            if(softDropShadow) {
+                shadow = saturate((1.-shadow)*2.) * (1.-pow(length(acLayerNorm-0.5)*2.,2.) );
+                vec4 adjShadowColor = dropShadowColor * dropShadowAlpha * shadow * (smoothstep(0.5,1.0,blurColor.a)) * texColor.a;
+                gl_FragColor = (cf.x > 0.0 ? composite(adjShadowColor,result) : adjShadowColor) * step(uv.x,1.) * step(uv.y,1.);
+            } else {
+                gl_FragColor = (cf.x > 0.0 ? result : dropShadowColor * dropShadowAlpha * saturate((1.-shadow)*2.) * texColor.a) * step(uv.x,1.) * step(uv.y,1.);
+            }
+            
+        }
+
+    ]]></shader>
+
+</effect>

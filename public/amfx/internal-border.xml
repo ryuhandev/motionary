@@ -1,0 +1,183 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.internal.border" name="@string/name" desc="@string/desc" internal="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">[INTERNAL] Border</string>
+            <string name="desc">[INTERNAL] Border</string>
+            <string name="radius">Radius</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="xDistBuf" srcType="buffer" />
+        <slider   id="maxsize" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <slider   id="b0size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b0color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b0direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b1size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b1color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b1direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b2size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b2color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b2direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b3size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b3color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b3direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b4size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b4color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b4direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b5size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b5color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b5direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b6size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b6color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b6direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b7size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b7color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b7direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+        <slider   id="b8size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b8color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+        <selector id="b8direction" default="1" style="radio" label="Direction" > <choice label="out" value="1" />  <choice label="in" value="-1" /> <choice label="center" value="0" /> </selector>
+    </params>
+
+    <passes>
+        <pass target="xDistBuf" />
+        <pass />
+    </passes>
+
+    <shader type="fragment"><![CDATA[
+
+        #define MULTISAMPLE 1.0
+        #define MAX_RADIUS 16383.0
+
+        vec2 encodeFloat(float v) {
+            highp vec2 enc = fract(vec2(1.0, 255.0)*v);
+            enc.x -= enc.y/255.0;
+            return enc;
+        }
+
+        float decodeFloat(vec2 v) {
+            return dot(v,vec2(1.0,1.0/255.0));
+        }
+
+        struct Border {
+            int direction;
+            float size;
+            vec4 color;
+        };
+
+        void main() {
+
+            float radius=maxsize*MULTISAMPLE;
+
+            int from = -max(1,int(radius));
+            int to = max(1,int(radius));
+
+            // Size of a pixel
+            vec2 fullViewSize = getTexSize(inputImg.size);
+            float px = (1.0/fullViewSize.x);
+            float py = (1.0/fullViewSize.y);
+
+            if( acPass==0 ) {
+
+                // Calculate distance on X-axis and encode in a texture
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float x = float(i);
+
+                    vec4 sample = texture2DCv(inputImg.texture,vec2(acScreenNorm.s + x*(px/MULTISAMPLE),acScreenNorm.t));
+                    float xdistOut = sample.a > 0.0 ? abs(x) : radius*2.0;
+                    float xdistIn = sample.a < 0.003 ? abs(x) : radius*2.0;
+                    nearestOutside = min(nearestOutside,xdistOut);
+                    nearestInside = min(nearestInside,xdistIn);
+
+                }
+
+                gl_FragColor = vec4(encodeFloat(nearestOutside/MAX_RADIUS),encodeFloat(nearestInside/MAX_RADIUS));
+
+            } else {
+
+                // Final pass
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float y = float(i);
+
+                    vec4 sample = texture2DCv(xDistBuf.texture,vec2(acScreenNorm.s,acScreenNorm.t + y*(py/MULTISAMPLE)));
+
+                    float xdistOut = decodeFloat(sample.rg) * MAX_RADIUS;
+                    float xdistIn = decodeFloat(sample.ba) * MAX_RADIUS;
+                    float ydist = abs(y);
+                    float distOut = length(vec2(xdistOut,ydist));
+                    float distIn = length(vec2(xdistIn,ydist));
+
+                    nearestInside = min(nearestInside,distIn);
+                    nearestOutside = min(nearestOutside,distOut);
+                }
+
+                float nearestMid = max(nearestInside, nearestOutside);
+
+                vec4 original = texture2DCv(inputImg.texture,acScreenNorm.st);
+
+                Border borders[8];
+                borders[0].direction = b0direction;
+                borders[0].size      = b0size;
+                borders[0].color     = b0color;
+                borders[1].direction = b1direction;
+                borders[1].size      = b1size;
+                borders[1].color     = b1color;
+                borders[2].direction = b2direction;
+                borders[2].size      = b2size;
+                borders[2].color     = b2color;
+                borders[3].direction = b3direction;
+                borders[3].size      = b3size;
+                borders[3].color     = b3color;
+                borders[4].direction = b4direction;
+                borders[4].size      = b4size;
+                borders[4].color     = b4color;
+                borders[5].direction = b5direction;
+                borders[5].size      = b5size;
+                borders[5].color     = b5color;
+                borders[6].direction = b6direction;
+                borders[6].size      = b6size;
+                borders[6].color     = b6color;
+                borders[7].direction = b7direction;
+                borders[7].size      = b7size;
+                borders[7].color     = b7color;
+
+                vec4 result = original;
+
+                for( int i=0; i<8; i++ ) {
+                    int direction = borders[i].direction;
+                    vec4 color = borders[i].color;
+                    float size = borders[i].size;
+                    if( size > 0.003 ) {
+                        if( direction == -1 ) {
+                            vec4 c = mix(color,  vec4(0.0), smoothstep(1.0-1.5/size,1.0,nearestInside/(size/MULTISAMPLE))) * original.a;
+                            result = c + result*(1.0-c.a);
+                        } else if (direction == 0) {
+                            vec4 c = mix(color, vec4(0.0), smoothstep(1.0-1.5/size,1.0,nearestMid/(size/MULTISAMPLE)));;
+                            result = c + result*(1.0-c.a);
+                        } else if (direction == 1) {
+                            vec4 c = mix(color,  vec4(0.0), smoothstep(1.0-1.5/size,1.0,nearestOutside/(size/MULTISAMPLE))) * (1.-original.a);
+                            result = result + c*(1.0-result.a);
+                        }
+                    }
+                }
+
+                gl_FragColor = result;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,231 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.flip" name="@am:string/effect_flipcompat_name" desc="@am:string/effect_flip2_desc" category="3d" thumb="thumb/flip.webp" overdraw="true" max-overdraw="0.2" experimental="false" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="angle" default="0.0" min="-3600" max="3600" label="@am:string/effect_param_angle" step="0.1" ticks="0" type="angle" />
+        <spinner id="axis" default="0.0" min="0" max="3600" label="@am:string/effect_param_axis" step="1" ticks="0,45,90,180,270,360" type="angle" />
+        <spinner id="crop" default="1" min="0.01" max="2.0" label="@am:string/effect_param_crop" step="0.001" ticks="1.0" />
+        <spinner id="zdist" default="0" min="0" max="10.0" label="@am:string/effect_param_distance" step="0.001" ticks="1.0" />
+
+        <section text="@am:string/effect_section_lightsource" />
+        <switch id="enableLight" default="false" label="@am:string/effect_param_lighting_enable" />
+        <spinner id="lightIntensity" default="0.3" min="0" max="1" step="0.001" label="@am:string/effect_param_intensity" type="percent" />
+        <color id="lightColor" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="light" default="0.0" min="-3600" max="3600" label="@am:string/effect_param_angle" step="0.1" ticks="0" type="angle" />
+        <spinner id="lightDepth" default="0.3" min="-5" max="5" label="@am:string/effect_param_elevation" step="0.01" ticks="0"  />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+
+        // returns t and normal
+        vec4 iBox( in vec3 ro, in vec3 rd, in mat4 txx, in mat4 txi, in vec3 rad )
+        {
+            // convert from ray to box space
+            vec3 rdd = (txx*vec4(rd,0.0)).xyz;
+            vec3 roo = (txx*vec4(ro,1.0)).xyz;
+
+            // ray-box intersection in box space
+            vec3 m = 1.0/rdd;
+            vec3 n = m*roo;
+            vec3 k = abs(m)*rad;
+
+            vec3 t1 = -n - k;
+            vec3 t2 = -n + k;
+
+            float tN = max( max( t1.x, t1.y ), t1.z );
+            float tF = min( min( t2.x, t2.y ), t2.z );
+
+            if( tN > tF || tF < 0.0) return vec4(-1.0);
+
+            vec3 nor = -sign(rdd)*step(t1.yzx,t1.xyz)*step(t1.zxy,t1.xyz);
+
+            // convert to ray space
+
+            nor = (txi * vec4(nor,0.0)).xyz;
+
+            return vec4( tN, nor );
+        }
+
+        float sBox( in vec3 ro, in vec3 rd, in mat4 txx, in vec3 rad )
+        {
+            vec3 rdd = (txx*vec4(rd,0.0)).xyz;
+            vec3 roo = (txx*vec4(ro,1.0)).xyz;
+
+            vec3 m = 1.0/rdd;
+            vec3 n = m*roo;
+            vec3 k = abs(m)*rad;
+
+            vec3 t1 = -n - k;
+            vec3 t2 = -n + k;
+
+            float tN = max( max( t1.x, t1.y ), t1.z );
+            float tF = min( min( t2.x, t2.y ), t2.z );
+            if( tN > tF || tF < 0.0) return -1.0;
+
+            return tN;
+        }
+
+        mat4 rotationAxisAngle( vec3 v, float angle )
+        {
+            float s = sin( angle );
+            float c = cos( angle );
+            float ic = 1.0 - c;
+
+            return mat4( v.x*v.x*ic + c,     v.y*v.x*ic - s*v.z, v.z*v.x*ic + s*v.y, 0.0,
+                         v.x*v.y*ic + s*v.z, v.y*v.y*ic + c,     v.z*v.y*ic - s*v.x, 0.0,
+                         v.x*v.z*ic - s*v.y, v.y*v.z*ic + s*v.x, v.z*v.z*ic + c,     0.0,
+                         0.0,                0.0,                0.0,                1.0 );
+        }
+
+        mat4 translate( float x, float y, float z )
+        {
+            return mat4( 1.0, 0.0, 0.0, 0.0,
+                         0.0, 1.0, 0.0, 0.0,
+                         0.0, 0.0, 1.0, 0.0,
+                         x,   y,   z,   1.0 );
+        }
+
+        mat4 inverse( in mat4 m )
+        {
+            return mat4(
+                m[0][0], m[1][0], m[2][0], 0.0,
+                m[0][1], m[1][1], m[2][1], 0.0,
+                m[0][2], m[1][2], m[2][2], 0.0,
+                -dot(m[0].xyz,m[3].xyz),
+                -dot(m[1].xyz,m[3].xyz),
+                -dot(m[2].xyz,m[3].xyz),
+                1.0 );
+        }
+
+        void main() {
+
+            vec2 st = acLayerNorm;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+
+            float width;
+            float height;
+
+            if( acLayerSize.x > acLayerSize.y ) {
+                width = acLayerSize.x/acLayerSize.y;
+                height = 1.0;
+            }  else {
+                height = acLayerSize.y/acLayerSize.x;
+                width = 1.0;
+            }
+
+            float depth = 0.01;
+
+            vec2 p = st;
+            //float iTime = angle;
+
+             // camera movement
+            //float an = 0.4*iTime;
+            vec3 ro = vec3( 0.0, 0.0, 2.0 );
+            vec3 ta = vec3( 0.0, 0.0, 0.0 );
+            // camera matrix
+            vec3 ww = normalize( ta - ro );
+            vec3 uu = normalize( cross(ww,vec3(0.0,1.0,0.0) ) );
+            vec3 vv = normalize( cross(uu,ww));
+            // create view ray
+            vec3 rd = normalize( p.x*uu + p.y*vv + 2.0*ww );
+
+            // rotate and translate box
+            //mat4 rot = rotationAxisAngle( normalize(vec3(1.0,1.0,0.0)), iTime );
+            //mat4 rotx = rotationAxisAngle( normalize(vec3(1.0,0.0,0.0)), position.x/1000. );
+            //mat4 roty = rotationAxisAngle( normalize(vec3(0.0,1.0,0.0)), position.y/1000. );
+            //mat4 rot = rotx * roty;
+            // // mat4 rot45y = mat4(
+            // //     cos(-0.25*3.14159), 0.0, sin(-0.25*3.14159), 0.0,
+            // //     0.0, 1.0, 0.0, 0.0,
+            // //      -sin(-0.25*3.14159), 0.0, cos(-0.25*3.14159), 0,
+            // //     0.0, 0.0, 0.0, 1.0
+            // // );
+            float axisRad = axis * 3.14159 / 180.0;
+            mat2 rotAxis = mat2(
+                cos(axisRad), -sin(axisRad),
+                sin(axisRad), cos(axisRad)
+            );
+            vec2 axisVec = vec2(0.0,1.0) * rotAxis;
+            mat4 orient = rotationAxisAngle(vec3(axisVec,0.0),angle * 3.14159 / 180.0);
+            mat4 tra = translate( 0.0, 0.0, -zdist );
+            mat4 txi = tra * orient;
+            mat4 txx = inverse( txi );
+
+            // raytrace
+            float tmin = 10000.0;
+            vec3  nor = vec3(0.0);
+            vec3  pos = vec3(0.0);
+
+            // raytrace box
+            vec3 box = vec3(width/2.,height/2.,depth/2.) ;
+            vec4 res = iBox( ro, rd, txx, txi, box);
+            if( res.x>0.0 && res.x<tmin )
+            {
+                tmin = res.x;
+                nor = res.yzw;
+            }
+
+            // shading/lighting
+            vec3 col = vec3(0.9);
+            if( tmin<100.0 )
+            {
+                float lightAngle = light * 0.0174533;
+                vec3 lig = normalize(vec3(cos(lightAngle),-sin(lightAngle),lightDepth));
+                pos = ro + tmin*rd;
+
+                // material
+                float occ = 1.0;
+                vec3  mate = vec3(1.0);
+
+                {
+                    // recover box space data (we want to do shading in object space)
+                    vec3 opos = (txx*vec4(pos,1.0)).xyz;
+                    vec3 onor = (txx*vec4(nor,0.0)).xyz;
+
+                    mate = abs(onor.x)*texture2DCv( inputImg.texture, (vec4(mod(crop*0.5*opos.yz/box.yz+0.5,1.0),0.,1.)*acLayerToScreen).xy ).xyz +
+                           abs(onor.y)*texture2DCv( inputImg.texture, (vec4(mod(crop*0.5*opos.zx/box.zx+0.5,1.0),0.,1.)*acLayerToScreen).xy ).xyz +
+                           abs(onor.z)*texture2DCv( inputImg.texture, (vec4(mod(crop*0.5*opos.xy/box.xy+0.5,1.0),0.,1.)*acLayerToScreen).xy ).xyz;
+
+                    // wireframe
+                    //mate *= 1.0 - (1.0-abs(onor.x))*smoothstep( box.x-0.04, box.x-0.02, abs(opos.x) );
+                    //mate *= 1.0 - (1.0-abs(onor.y))*smoothstep( box.y-0.04, box.y-0.02, abs(opos.y) );
+                    //mate *= 1.0 - (1.0-abs(onor.z))*smoothstep( box.z-0.04, box.z-0.02, abs(opos.z) );
+
+                    occ = 0.6 + 0.4*nor.y;
+                }
+                //mate = mate*mate*1.5;
+
+                // lighting
+                float dif = clamp( dot(nor,lig), 0.0, 1.0 );
+                dif *= step( sBox( pos+0.01*nor, lig, txx, box ), 0.0 );
+                col = lightColor.rgb*lightIntensity*occ*3.0 + 1.5*dif*lightColor.rgb*lightIntensity;
+
+                // material * lighting
+                col *= mate;
+
+                // fog
+                col = mix( col, vec3(0.9), 1.0-exp( -0.003*tmin*tmin ) );
+                col = sqrt( col );
+
+                if( !enableLight ) {
+                    col = mate;
+                }
+
+                gl_FragColor = vec4( col, 1.0 );
+            } else {
+                gl_FragColor = vec4( 0. );
+            }
+
+
+
+            //vec4 texColor = texture2DCv(inputImg.texture,(vec4(uv,0.,1.)*acLayerToScreen).xy);
+
+            //gl_FragColor = radius > 0.5 ? vec4(0.) : mix(texColor,fogColor,clamp((1.-radius*2.)*fog,0.,1.));
+        }
+
+    ]]></shader>
+
+</effect>

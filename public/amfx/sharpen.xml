@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.sharpen" name="@am:string/effect_sharpen_name" desc="@am:string/effect_sharpen_desc" category="blur" tags="blur,raster" thumb="thumb/sharpen2.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="strength" default="1." min="0." max="20." step="0.01" label="@am:string/effect_param_strength" />
+        <spinner id="radius" default="1." min="1." max="10." step="0.1" label="@am:string/effect_param_radius" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+
+            vec2 st = acScreenNorm;
+            vec2 fragSize = vec2(1.)/getTexSize(inputImg.size) * radius;
+            vec4 w  = texture2DCv(inputImg.texture, vec2(acScreenNorm.x - fragSize.x, acScreenNorm.y) );
+            vec4 e  = texture2DCv(inputImg.texture, vec2(acScreenNorm.x + fragSize.x, acScreenNorm.y) );
+            vec4 n  = texture2DCv(inputImg.texture, vec2(acScreenNorm.x, acScreenNorm.y + fragSize.y) );
+            vec4 s  = texture2DCv(inputImg.texture, vec2(acScreenNorm.x, acScreenNorm.y - fragSize.y) );
+            vec4 texColor = texture2DCv(inputImg.texture, acScreenNorm);
+
+            float centerWeight = 1. + strength*4.;
+            float sideWeight = -strength;
+
+            gl_FragColor = n*sideWeight + s*sideWeight + e*sideWeight + w*sideWeight + texColor*centerWeight;
+
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.findedges" name="@am:string/effect_findedges_name" desc="@am:string/effect_findedges_desc" category="drawing" tags="edge,drawing,neon,raster" thumb="thumb/findedges.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Fractal Warp</string>-->
+            <!--<string name="desc">Distorts the layer using a fractal displacement map. For a heatwave effect, keyframe Parallax Y. For a handmade glass window effect, turn up intensity and scale, turn on Screen Space, and keyframe the layer position.</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="smoothing" default="1." min="1." max="10." step="0.01" label="@am:string/effect_param_smoothing" />
+        <spinner id="threshold" default="0." min="0." max="1." step="0.001" label="@am:string/effect_param_threshold" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        void main() {
+
+            vec2 st = acScreenNorm;
+            vec2 fragSize = vec2(1.)/getTexSize(inputImg.size) * smoothing;
+            float w  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x - fragSize.x, acScreenNorm.y) ).rgb*luminanceWeighting);
+            float e  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x + fragSize.x, acScreenNorm.y) ).rgb*luminanceWeighting);
+            float n  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x, acScreenNorm.y + fragSize.y) ).rgb*luminanceWeighting);
+            float s  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x, acScreenNorm.y - fragSize.y) ).rgb*luminanceWeighting);
+            float nw  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x - fragSize.x, acScreenNorm.y + fragSize.y) ).rgb*luminanceWeighting);
+            float ne  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x + fragSize.x, acScreenNorm.y + fragSize.y) ).rgb*luminanceWeighting);
+            float sw  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x - fragSize.x, acScreenNorm.y - fragSize.y) ).rgb*luminanceWeighting);
+            float se  = dot(vec3(1.),texture2DCv(inputImg.texture, vec2(acScreenNorm.x + fragSize.x, acScreenNorm.y - fragSize.y) ).rgb*luminanceWeighting);
+            //mat3 m = mat3( nw, n, ne,
+            //               w, 0., e,
+            //               sw, s, se );
+            //mat3 v = mat3( 3., 10., 3.,
+            //               0., 0., 0.,
+            //               -3., -10., -3.);
+            //mat3 h = mat3( -3., 0., 3.,
+            //               -10., 0., 10.,
+            //               -3., 0., 3.);
+
+            float v = nw * 3. + n * 10. + ne * 3. + sw * -3. + s * -10. + se * -3.;
+            float h = nw * -3. + w * -10. + sw * -3. + ne * 3. + e * 10. + se * 3.;
+            float g = clamp(sqrt(h*h + v*v)-threshold, 0., 1.);
+
+            vec4 texColor = texture2DCv(inputImg.texture, acScreenNorm);
+
+            if( invert ) {
+                gl_FragColor = vec4(g,g,g,1.) * texColor;
+            } else {
+                gl_FragColor = vec4(1.-g,1.-g,1.-g,1.) * texColor.a;
+            }
+
+        }
+
+    ]]></shader>
+
+</effect>

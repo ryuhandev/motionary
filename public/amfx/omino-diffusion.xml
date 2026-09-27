@@ -1,0 +1,208 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.ominodiff"
+    name="@am:string/effect_omino_diffusion_name"
+    desc="@am:string/effect_omino_diffusion_desc"
+    category="procedural"
+    tags="channel,glitch,noise,distortion"
+    thumb="thumb/directionalblur.webp"
+    experimental="false"
+    overdraw="true"
+    max-overdraw="0.1">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <spinner id="strength" default="1.0" min="0.01" max="1.0" label="@am:string/effect_param_strength" step="0.01" />
+        <spinner id="steps" default="35.0" min="1.0" max="200.0" label="@am:string/effect_param_steps" step="1." />
+        <spinner id="errorWeight" default=".75" min="0.0" max="10.0" label="@am:string/effect_param_error_weight" step="0.001" snap="1" ticks="1" />
+        <spinner id="errorFalloff" default="0." min="0.0" max="1.0" label="@am:string/effect_param_weight_falloff" step="0.01" type="percent" />
+
+        <selector id="palette" default="2" style="dropdown" label="@am:string/effect_param_palette" >
+            <choice label="@am:string/effect_param_black_white" value="0" />
+            <choice label="@am:string/effect_param_rgb_posterize_2_levels" value="1" />
+            <choice label="@am:string/effect_param_rgb_posterize_3_levels" value="2" />
+            <choice label="@am:string/effect_param_rgb_posterize_4_levels" value="3" />
+            <choice label="@am:string/effect_param_gray_3_levels" value="4" />
+            <choice label="@am:string/effect_param_gray_4_levels" value="5" />
+            <choice label="@am:string/effect_param_cga_green_red_yellow" value="6" />
+            <choice label="@am:string/effect_param_cga_cyan_magenta_white" value="7" />
+            <choice label="@am:string/effect_param_cga_blue_cyan_magenta_white" value="8" />
+            <choice label="@am:string/effect_param_saturate_and_posterize" value="9" />
+            <choice label="@am:string/effect_param_custom_2color" value="12" enableTargets="color1,color2" />
+            <choice label="@am:string/effect_param_custom_3color" value="13" enableTargets="color1,color2,color3" />
+            <choice label="@am:string/effect_param_custom_4color" value="14" enableTargets="color1,color2,color3,color4" />
+            <choice label="@am:string/effect_param_custom_5color" value="15" enableTargets="color1,color2,color3,color4,color5" />
+            <choice label="@am:string/effect_param_custom_6color" value="16" enableTargets="color1,color2,color3,color4,color5,color6" />
+        </selector>
+
+        <spinner id="alpha" default="1" min="0" max="1" step="0.01" label="@am:string/effect_param_alpha" />
+
+        <selector id="blendMode" default="0" style="dropdown" label="@am:string/effect_param_blendmode" >
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+
+        <section text="@am:string/effect_param_custom_palette" />
+        <color id="color1" default="#FF000000" label="@am:string/effect_param_color1" alpha="false" enabled="false" />
+        <color id="color2" default="#FF5555FF" label="@am:string/effect_param_color2" alpha="false" enabled="false" />
+        <color id="color3" default="#FF55FF55" label="@am:string/effect_param_color3" alpha="false" enabled="false" />
+        <color id="color4" default="#FF55FFFF" label="@am:string/effect_param_color4" alpha="false" enabled="false" />
+        <color id="color5" default="#FFFF5555" label="@am:string/effect_param_color5" alpha="false" enabled="false" />
+        <color id="color6" default="#FFFF55FF" label="@am:string/effect_param_color6" alpha="false" enabled="false" />
+
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        mat2 rot2(float a) {
+            float s = sin(a);
+            float c = cos(a);
+            return mat2(c,-s,s,c);
+        }
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        float colorDiff( vec3 a, vec3 b ) {
+            vec3 d = abs(a-b);
+            return d.r + d.g + d.b;
+        }
+
+        highp mat3 rgb2yuv = mat3(
+             0.299,     0.587,    0.114,
+            -0.14713,  -0.28886,  0.436,
+             0.615,    -0.51499, -0.10001
+        );
+        highp mat3 yuv2rgb = mat3(
+            1.0,  0.0,      1.13983,
+            1.0, -0.39465, -0.58060,
+            1.0,  2.03211,  0.0
+        );
+
+        void main() {
+
+            vec2 v = vec2(1.,0.) * rot2((180.0-angle) * 0.0174533);
+            //v.x *= acScreenSize.y / acScreenSize.x;
+            vec2 dv = v * strength / steps;
+            vec3 accumErr = vec3(0.);
+            vec4 outColor = vec4(0.);
+            for(float i=steps; i>=0.0; i -= 1.0 ) {
+                float pct = i/steps;
+                vec4 texColor = texture2DCv(inputImg.texture, acScreenNorm.st + dv*i);
+                vec3 baseColor = saturate((texColor.a < 0.001 ? vec3(0.) : texColor.rgb / texColor.a) + accumErr);
+                
+                vec3 matchColor;
+                if( palette == 0 ) { // Black & white
+                    float luminance = dot(baseColor, luminanceWeighting);
+                    matchColor = luminance < 0.5 ? vec3(0.) : vec3( 1. );
+                } else if( palette == 1 ) { // RGB 2-Level Posterize
+                    matchColor = floor(baseColor* 2.0);
+                } else if( palette == 2 ) { // RGB 3-Level Posterize
+                    matchColor = floor((baseColor + 0.25) * 2.0) / 2.0;
+                } else if( palette == 3 ) { // RGB 4-Level Posterize
+                    matchColor = floor((baseColor + 0.1666667) * 3.0) / 3.0;
+                } else if( palette == 4 ) { // Gray 3 levels
+                    float luminance = dot(baseColor, luminanceWeighting);
+                    float adjLum = floor((luminance + 0.25) * 2.0) / 2.0;
+                    matchColor = vec3(adjLum);
+                } else if( palette == 5 ) { // Gray 4 levels
+                    float luminance = dot(baseColor, luminanceWeighting);
+                    float adjLum = floor((luminance + 0.1666667) * 3.0) / 3.0;
+                    matchColor = vec3(adjLum);
+                } else if( palette == 6 ) { // CGA Green/Red/Yellow
+                    matchColor = floor(baseColor*2.0);
+                    matchColor.b = 0.;
+                } else if( palette == 7 ) { // CGA Cyan/Magenta/White
+                    matchColor = floor(baseColor*2.0);
+                    matchColor.b = matchColor.r > 0.1 || matchColor.g > 0.1 ? 1. : 0.;
+                } else if( palette == 8 ) { // CGA Blue/Cyan/Magenta/White
+                    matchColor = floor(baseColor*2.0);
+                    matchColor.b = 1.;
+                } else if( palette == 9 ) { // Saturate and Posterize
+                    vec3 yuv = baseColor * rgb2yuv;
+                    yuv.gb = (yuv.gb-0.5) * 2.0 + 0.5;
+                    yuv.r = floor((yuv.r + 0.166667)*3.0)/3.0;
+                    matchColor = vec3(yuv * yuv2rgb);
+                } else if( palette == 11 ) {
+                    matchColor = color1.rgb;
+                } else if( palette == 12 ) {
+                    float d1 = colorDiff(baseColor,color1.rgb);
+                    float d2 = colorDiff(baseColor,color2.rgb);
+                    float dmin = min(d1,d2);
+                    matchColor = dmin==d1 ? color1.rgb : color2.rgb;
+                } else if( palette == 13 ) {
+                    float d1 = colorDiff(baseColor,color1.rgb);
+                    float d2 = colorDiff(baseColor,color2.rgb);
+                    float d3 = colorDiff(baseColor,color3.rgb);
+                    float dmin = min(min(d1,d2),d3);
+                    matchColor =
+                        dmin==d1 ? color1.rgb :
+                        dmin==d2 ? color2.rgb :
+                        color3.rgb;
+                } else if( palette == 14 ) {
+                    float d1 = colorDiff(baseColor,color1.rgb);
+                    float d2 = colorDiff(baseColor,color2.rgb);
+                    float d3 = colorDiff(baseColor,color3.rgb);
+                    float d4 = colorDiff(baseColor,color4.rgb);
+                    float dmin = min(min(d1,d2),min(d3,d4));
+                    matchColor =
+                        dmin==d1 ? color1.rgb :
+                        dmin==d2 ? color2.rgb :
+                        dmin==d3 ? color3.rgb :
+                        color4.rgb;
+                } else if( palette == 15 ) {
+                    float d1 = colorDiff(baseColor,color1.rgb);
+                    float d2 = colorDiff(baseColor,color2.rgb);
+                    float d3 = colorDiff(baseColor,color3.rgb);
+                    float d4 = colorDiff(baseColor,color4.rgb);
+                    float d5 = colorDiff(baseColor,color5.rgb);
+                    float dmin = min(min(min(d1,d2),min(d3,d4)),d5);
+                    matchColor =
+                        dmin==d1 ? color1.rgb :
+                        dmin==d2 ? color2.rgb :
+                        dmin==d3 ? color3.rgb :
+                        dmin==d4 ? color4.rgb :
+                        color5.rgb;
+                } else if( palette == 16 ) {
+                    float d1 = colorDiff(baseColor,color1.rgb);
+                    float d2 = colorDiff(baseColor,color2.rgb);
+                    float d3 = colorDiff(baseColor,color3.rgb);
+                    float d4 = colorDiff(baseColor,color4.rgb);
+                    float d5 = colorDiff(baseColor,color5.rgb);
+                    float d6 = colorDiff(baseColor,color6.rgb);
+                    float dmin = min(min(min(d1,d2),min(d3,d4)),min(d5,d6));
+                    matchColor =
+                        dmin==d1 ? color1.rgb :
+                        dmin==d2 ? color2.rgb :
+                        dmin==d3 ? color3.rgb :
+                        dmin==d4 ? color4.rgb :
+                        dmin==d5 ? color5.rgb :
+                        color6.rgb;
+                }
+                
+                //matchColor *= texColor.a;
+                
+                outColor = vec4(matchColor,1.)*texColor.a;
+                vec3 err = baseColor - matchColor;
+                accumErr = err * errorWeight * mix(1.,pct*pct,errorFalloff);
+            }
+            vec4 origColor = texture2DCv(inputImg.texture, acScreenNorm.st);
+            vec4 result;
+            if( blendMode==1 ) { // Multiply
+                vec3 a = origColor.rgb / max(origColor.a,0.00001);
+                vec3 b = outColor.rgb / max(outColor.a,0.00001);
+                result = vec4(a * b, 1.) * origColor.a;
+            } else if( blendMode==2 ) { // Screen
+                vec3 a = origColor.rgb / max(origColor.a,0.00001);
+                vec3 b = outColor.rgb / max(outColor.a,0.00001);
+                result = vec4(1.-((1.-a) * (1.-b)), 1.) * origColor.a;
+            } else {
+                result = outColor;
+            }
+            gl_FragColor = mix(origColor,result,alpha);
+        }
+
+    ]]></shader>
+
+</effect>

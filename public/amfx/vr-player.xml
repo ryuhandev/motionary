@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.vrplayer" name="@am:string/effect_360viewer_name" desc="@am:string/effect_360viewer_desc" category="distort" tags="distort,360,vr,raster,membersOnly" thumb="thumb/vrviewer.webp" overdraw="false" experimental="false" deprecated="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <orient id="orient" label="@am:string/effect_param_orientation" invert="true" />
+        <xyz id="rotate" label="@am:string/effect_param_rotation" type="rotate" />
+        <spinner id="dist" default="1.0" min="0.2" max="2.0" step="0.01" label="@am:string/effect_param_distance" />
+        <selector id="aspectRatio" default="0" style="radio" label="">
+            <choice label="16:9" value="0" />
+            <choice label="4:3" value="1" />
+            <choice label="1:1" value="2" />
+<!--            <choice label="3:4" value="3" />-->
+            <choice label="4:5" value="4" />
+            <choice label="9:16" value="5" />
+        </selector>
+        <spinner id="scale" default="1.0" min="0.1" max="2.0" step="0.01" label="@am:string/effect_param_scale" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        mat4 rotationAxisAngle( vec3 v, float angle )
+        {
+            float s = sin( angle );
+            float c = cos( angle );
+            float ic = 1.0 - c;
+
+            return mat4( v.x*v.x*ic + c,     v.y*v.x*ic - s*v.z, v.z*v.x*ic + s*v.y, 0.0,
+                         v.x*v.y*ic + s*v.z, v.y*v.y*ic + c,     v.z*v.y*ic - s*v.x, 0.0,
+                         v.x*v.z*ic - s*v.y, v.y*v.z*ic + s*v.x, v.z*v.z*ic + c,     0.0,
+                         0.0,                0.0,                0.0,                1.0 );
+        }
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        #define M_PI 3.14159265358979323846
+
+        #define DEG2RAD 0.01745329251994329576923690768489
+
+        float hfovDegrees = 120.0;
+        float vfovDegrees = 60.0;
+
+        void main() {
+
+            vec2 st = (vec2(1.0-acLayerNorm.x, acLayerNorm.y)-0.5) / scale + 0.5;
+
+            vec2 uv = st.xy * 2.0 - 1.0;
+
+            //to spherical
+            vec3 camDir = normalize(vec3(uv.xy * vec2(tan(0.5 * hfovDegrees * DEG2RAD), tan(0.5 * vfovDegrees * DEG2RAD)), 1.0 / dist));
+
+            vec3 r = rotate * 0.0174533;
+            mat4 rx = rotationAxisAngle(vec3(1.,0.,0.),r.x);
+            mat4 ry = rotationAxisAngle(vec3(0.,1.,0.),r.y);
+            mat4 rz = rotationAxisAngle(vec3(0.,0.,1.),r.z);
+
+            vec3 rd = (vec4(camDir,0.) * orient * rz * rx * ry).xyz;
+
+            vec2 cutting = vec2(0.0, 0.0);
+            
+            float inWidth = acLayerSize.x;
+            float inHeight = acLayerSize.x;
+            float width;
+            float height;
+            if( aspectRatio==0 ) {
+                width = 16.0;
+                height = 9.0;
+            } else if( aspectRatio==1 ) {
+                width = 4.0;
+                height = 3.0;
+            } else if( aspectRatio==2 ) {
+                width = 1.0;
+                height = 1.0;
+            } else if( aspectRatio==3 ) {
+                width = 3.0;
+                height = 4.0;
+            } else if( aspectRatio==4 ) {
+                width = 4.0;
+                height = 5.0;
+            } else if( aspectRatio==5 ) {
+                width = 9.0;
+                height = 16.0;
+            } else {
+                width = 9.0;
+                height = 16.0;
+            }
+            float fitHeight = height * inWidth / width;
+            float fitWidth = width * inHeight / height;
+            vec2 clipDimens;
+            if( fitHeight >= inHeight ) {
+                clipDimens = vec2(fitWidth,inHeight);
+            } else {
+                clipDimens = vec2(inWidth,fitHeight);
+            }
+            clipDimens /= acLayerSize;
+
+            //radial azmuth polar
+            vec2 conv_uv = vec2(atan(rd.z, rd.x) + M_PI, acos(-rd.y)) / vec2(2.0 * M_PI, M_PI);
+            conv_uv.x = clamp(conv_uv.x, 1.0 / acLayerSize.x, 1.0 - 1.0 / acLayerSize.x );
+            conv_uv.y = clamp(conv_uv.y, 1.0 / acLayerSize.y, 1.0 - 1.0 / acLayerSize.y );
+            float inside = step(-clipDimens.x,uv.x) * step(uv.x,clipDimens.x) * step(-clipDimens.y,uv.y) * step(uv.y,clipDimens.y);
+            gl_FragColor = texture2DCv(inputImg.texture,l2s(conv_uv)) * inside;
+        }
+
+    ]]></shader>
+
+</effect>

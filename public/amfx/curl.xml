@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.curl" name="@am:string/effect_curl_name" desc="@am:string/effect_curl_desc" category="distort" tags="warp,bend,raster,membersOnly" thumb="thumb/curl.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <!--<point id="center" default="500,500" label="@am:string/effect_param_center" />-->
+        <spinner id="offset" default="0.5" min="-.5" max="1.5" label="@am:string/effect_param_offset" step="0.001" ticks="0., 0.5, 1." />
+        <spinner id="radius" default="1.0" min="0.0" max="50." label="@am:string/effect_param_radius" step="0.001" ticks="0., 0.5, 1." />
+        <!--<selector id="origin" default="0" style="radio" label="@am:string/effect_param_origin" >-->
+            <!--<choice label="┓" value="0" />-->
+            <!--<choice label="┏" value="1" />-->
+            <!--<choice label="┛" value="2" />-->
+            <!--<choice label="┗" value="3" />-->
+        <!--</selector>-->
+        <selector id="curlFrom" default="1" style="radio" label="@am:string/effect_param_curlfrom" >
+            <choice label="@am:string/effect_param_left" value="0" />
+            <choice label="@am:string/effect_param_right" value="1" />
+        </selector>
+        <selector id="curlDirection" default="0" style="radio" label="@am:string/effect_param_direction" >
+            <choice label="@am:string/effect_param_up" value="0" />
+            <choice label="@am:string/effect_param_down" value="1" />
+        </selector>
+        <spinner id="stretch" default="1.0" min=".01" max="50.0" label="@am:string/effect_param_stretch" step="0.001" snap="1" ticks="1" />
+        <!--<section text="@am:string/effect_param_circle" />-->
+        <!--<slider id="circleAlpha" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_alpha" />-->
+        <!--<color id="circleColor" default="#FF0088FF" label="@am:string/effect_param_color" alpha="false" />-->
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        #define PI 3.1415926536
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        void main() {
+            //vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm;
+            //st.x *= acLayerSize.x/acLayerSize.y;
+
+            vec2 adjCenter;// = center/1000.;
+            if( curlDirection==0 ) {
+                adjCenter = vec2(offset,-radius);
+            } else {
+                adjCenter = vec2(offset,1.+radius);
+            }
+            adjCenter.y = 1.-adjCenter.y;
+
+            vec2 dd = st-adjCenter;
+            dd.x *= acLayerSize.x/acLayerSize.y;
+
+            float circ = 2. * PI * radius / (acLayerSize.x/acLayerSize.y) * stretch;
+            float a = 0.5 - (atan(dd.x,dd.y) / (2. * PI));
+            float r = length(dd);
+
+            //bool top = (origin==0 || origin==1);
+            //bool right = (origin==1 || origin==3);
+            bool top = (curlDirection==1); // (center.y>=500.);
+            bool right = (curlFrom==0);
+
+            float cline = smoothstep(1.0-(2./acLayerSize.y),1.0,1.-abs(radius-length(dd)));
+
+            if( top ) {
+                float topY = adjCenter.y + radius;
+                a = mod(a - 0.500,1.);
+                float arcDist = a*circ;
+                if( right ) {
+                    vec2 v = vec2(adjCenter.x-(arcDist),topY+(r-radius));
+
+                    if( st.x < adjCenter.x || st.y < topY ) {
+                        st = v;
+                    }
+                } else {
+                    vec2 v = vec2((circ-arcDist+adjCenter.x),topY+(r-radius));
+
+                    if( st.x > adjCenter.x || st.y < topY ) {
+                        st = v;
+                    }
+                }
+            } else {
+                float bottomY = adjCenter.y - radius;
+                float arcDist = a*circ;
+                if( right ) {
+                    vec2 v = vec2(adjCenter.x-(circ-arcDist),bottomY-(r-radius));
+
+                    if( st.x < adjCenter.x || st.y > bottomY ) {
+                        st = v;
+                    }
+                } else {
+                    vec2 v = vec2(arcDist+adjCenter.x,bottomY-(r-radius));
+
+                    if( st.x > adjCenter.x || st.y > bottomY ) {
+                        st = v;
+                    }
+                }
+            }
+
+            float inside = step(0.,st.x) * step(st.x,1.) * step(0.,st.y) * step(st.y,1.) * step(radius,r);
+
+            vec4 result = texture2DCv(inputImg.texture,l2s(st))*inside;
+            vec4 circleColor = vec4(0.2,0.6,0.9,1.0);
+            float circleAlpha = acShowGuides?0.5:0.0;
+            gl_FragColor = mix(result,circleColor,cline*circleAlpha);
+        }
+
+    ]]></shader>
+
+</effect>

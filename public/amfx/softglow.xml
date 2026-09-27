@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.softglow"
+    name="@am:string/effect_soft_glow_name"
+    desc="@am:string/effect_soft_glow_desc"
+    category="color"
+    tags="color,colorGrading"
+    thumb="thumb/glowscan.webp"
+    experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="blurBuf" srcType="buffer" />
+        <texture id="comp" srcType="comp" />
+        <spinner id="strength" default="0.1" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_diffusion" />
+        <spinner id="brightness" default="1.00" min="0.0" max="2" label="@am:string/effect_param_brightness" type="percent" />
+        <spinner id="contrast" default="0.2" min="0.0" max="1" label="@am:string/effect_param_contrast" type="percent" />
+        <spinner id="highlights" default="0.5" min="0.0" max="1" label="@am:string/effect_param_highlights" type="percent" />
+        <color id="color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" />
+        <slider id="blend" default="0.25" min="0.0" max="1" label="@am:string/effect_param_blend" type="percent" />
+        <spinner id="alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" />
+        <spinner id="outsideAlpha" default="0.00" min="0.0" max="1" label="@am:string/effect_param_outer_glow" type="percent" />
+    </params>
+
+    <passes>
+        <pass target="blurBuf" effect="com.alightcreative.effects.gaussianblur"/>
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        vec4 composite( vec4 a, vec4 b) {
+            return a * (1. - b.a) + b;
+        }
+
+        void main() {
+        
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 blurTexColor = texture2DCv(blurBuf.texture,acScreenNorm);
+            vec4 adjBlur = blurTexColor;
+            adjBlur.rgb = min(adjBlur.rgb * brightness, vec3(1.0,1.0,1.0));
+            float luminance = min(1.0,dot(adjBlur.rgb, luminanceWeighting) * brightness);
+            vec4 blendColor = mix(adjBlur,luminance*color,blend);
+            blendColor.rgb = mix(blendColor.rgb,vec3(luminance,luminance,luminance),luminance*highlights);
+            blendColor.rgb = blendColor.rgb * mix(vec3(1.0),blendColor.rgb,contrast);
+            vec4 blendInside = blendColor * alpha;
+            vec4 result = saturate(vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-blendInside.rgb)),1.0) * texColor.a);
+            if( outsideAlpha > 0. ) {
+                vec4 compColor = texture2DCv(comp.texture,acScreenNorm);
+                float lum = dot(blurTexColor.rgb, luminanceWeighting);
+                vec4 blendOutside = mix(blurTexColor,color*lum,blend);
+                vec4 oc = vec4( 1.-((1.-(compColor.rgb/max(0.000001,compColor.a)))*(1.-(blendOutside.rgb/max(0.000001,blendOutside.a)))),1.0) * compColor.a;
+                result = composite(mix(result, oc, outsideAlpha * (blurTexColor.a*2.)),result);
+            }
+            gl_FragColor = result;
+        
+        }
+
+    ]]></shader>
+
+</effect>
+

@@ -1,0 +1,220 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.palettemap" name="@am:string/effect_palettemap_name" desc="@am:string/effect_palettemap_desc" category="color" tags="color,retro,raster" thumb="thumb/palmap.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <selector id="palette" default="1" style="dropdown" label="@am:string/effect_param_palette" >
+            <choice label="@am:string/effect_param_cga_green_red_yellow" value="0" />
+            <choice label="@am:string/effect_param_cga_cyan_magenta_white" value="1" />
+            <choice label="@am:string/effect_param_cga_blue_cyan_magenta_white" value="10" />
+            <choice label="@am:string/effect_param_ega_classic" value="2" />
+            <choice label="@am:string/effect_param_ega_vibrant" value="3" />
+            <choice label="@am:string/effect_param_3bit_rgb" value="4" />
+            <choice label="@am:string/effect_param_2bit_gray" value="5" />
+            <choice label="@am:string/effect_param_custom_3color" value="6" enableTargets="color1,color2,color3,shades" />
+            <choice label="@am:string/effect_param_custom_4color" value="7" enableTargets="color1,color2,color3,color4,shades" />
+            <choice label="@am:string/effect_param_custom_6color" value="8" enableTargets="color1,color2,color3,color4,color5,color6,shades" />
+            <choice label="@am:string/effect_param_custom_8color" value="9" enableTargets="color1,color2,color3,color4,color5,color6,color7,color8,shades" />
+        </selector>
+
+        <spinner id="alpha" default="1" min="0" max="1" step="0.01" label="@am:string/effect_param_alpha" />
+
+        <section text="@am:string/effect_param_custom_palette" />
+        <color id="color1" default="#FF000000" label="@am:string/effect_param_color1" alpha="false" enabled="false" />
+        <color id="color2" default="#FF5555FF" label="@am:string/effect_param_color2" alpha="false" enabled="false" />
+        <color id="color3" default="#FF55FF55" label="@am:string/effect_param_color3" alpha="false" enabled="false" />
+        <color id="color4" default="#FF55FFFF" label="@am:string/effect_param_color4" alpha="false" enabled="false" />
+        <color id="color5" default="#FFFF5555" label="@am:string/effect_param_color5" alpha="false" enabled="false" />
+        <color id="color6" default="#FFFF55FF" label="@am:string/effect_param_color6" alpha="false" enabled="false" />
+        <color id="color7" default="#FFFFFF55" label="@am:string/effect_param_color7" alpha="false" enabled="false" />
+        <color id="color8" default="#FFFFFFFF" label="@am:string/effect_param_color8" alpha="false" enabled="false" />
+        <switch id="shades" default="false" label="@am:string/effect_param_include_shades" enabled="false" />
+
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+
+            // 0xFF = 255 = 1.000
+            // 0x55 =  85 = 0.333
+            // 0xAA = 170 = 0.667
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float a = texColor.a;
+            vec3 rgb = texColor.rgb / max(0.0001,a);
+
+            vec3 c[16];
+            int ncolors;
+
+            if( palette == 0 ) {
+                c[0] = vec3(0.000, 0.000, 0.000);
+                c[1] = vec3(0.333, 1.000, 0.333);
+                c[2] = vec3(1.000, 0.333, 0.333);
+                c[3] = vec3(1.000, 1.000, 0.333);
+                ncolors = 4;
+            } else if( palette == 1 ) {
+                c[0] = vec3(0.000, 0.000, 0.000);
+                c[1] = vec3(0.333, 1.000, 1.000);
+                c[2] = vec3(1.000, 0.333, 1.000);
+                c[3] = vec3(1.000, 1.000, 1.000);
+                ncolors = 4;
+            } else if( palette == 10 ) {
+                c[0] = vec3(0.333, 0.333, 1.000);
+                c[1] = vec3(0.333, 1.000, 1.000);
+                c[2] = vec3(1.000, 0.333, 1.000);
+                c[3] = vec3(1.000, 1.000, 1.000);
+                ncolors = 4;
+            } else if( palette == 2 ) {
+                c[0] = vec3(0.000, 0.000, 0.000);
+                c[1] = vec3(0.000, 0.000, 0.667);
+                c[2] = vec3(0.000, 0.667, 0.000);
+                c[3] = vec3(0.000, 0.667, 0.667);
+                c[4] = vec3(0.667, 0.000, 0.000);
+                c[5] = vec3(0.667, 0.000, 0.667);
+                c[6] = vec3(0.667, 0.333, 0.000);
+                c[7] = vec3(0.667, 0.667, 0.667);
+
+                c[8]  = vec3(0.333, 0.333, 0.333);
+                c[9]  = vec3(0.333, 0.333, 1.000);
+                c[10] = vec3(0.333, 1.000, 0.333);
+                c[11] = vec3(0.333, 1.000, 1.000);
+                c[12] = vec3(1.000, 0.333, 0.333);
+                c[13] = vec3(1.000, 0.333, 1.000);
+                c[14] = vec3(1.000, 1.000, 0.333);
+                c[15] = vec3(1.000, 1.000, 1.000);
+                ncolors = 16;
+            } else if( palette == 3 ) {
+                c[0] = vec3(0.000, 0.000, 0.000);
+                c[1] = vec3(0.000, 0.000, 0.667);
+                c[2] = vec3(0.000, 0.667, 0.000);
+                c[3] = vec3(0.333, 0.667, 1.000);
+                c[4] = vec3(0.667, 0.000, 0.000);
+                c[5] = vec3(0.667, 0.000, 0.667);
+                c[6] = vec3(0.333, 0.667, 0.000);
+                c[7] = vec3(0.667, 0.667, 0.667);
+
+                c[8]  = vec3(0.333, 0.333, 0.333);
+                c[9]  = vec3(0.333, 0.333, 1.000);
+                c[10] = vec3(0.333, 1.000, 0.333);
+                c[11] = vec3(0.333, 1.000, 1.000);
+                c[12] = vec3(1.000, 0.333, 0.333);
+                c[13] = vec3(1.000, 0.333, 1.000);
+                c[14] = vec3(1.000, 1.000, 0.333);
+                c[15] = vec3(1.000, 1.000, 1.000);
+                ncolors = 16;
+            } else if( palette == 4 ) {
+                c[0] = vec3(0.000, 0.000, 0.000);
+                c[1] = vec3(0.333, 0.333, 1.000);
+                c[2] = vec3(0.333, 1.000, 0.333);
+                c[3] = vec3(0.333, 1.000, 1.000);
+                c[4] = vec3(1.000, 0.333, 0.333);
+                c[5] = vec3(1.000, 0.333, 1.000);
+                c[6] = vec3(1.000, 1.000, 0.333);
+                c[7] = vec3(1.000, 1.000, 1.000);
+                ncolors = 8;
+            } else if( palette == 5 ) {
+                c[0] = vec3(0.000, 0.000, 0.000);
+                c[1] = vec3(0.333, 0.333, 0.333);
+                c[2] = vec3(0.667, 0.667, 0.667);
+                c[3] = vec3(1.000, 1.000, 1.000);
+                ncolors = 4;
+            } else if( palette == 6 && shades) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                c[4] = color1.rgb * 0.667;
+                c[5] = color2.rgb * 0.667;
+                c[6] = color3.rgb * 0.667;
+                ncolors = 6;
+            } else if( palette == 6 ) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                ncolors = 3;
+            } else if( palette == 7 && shades ) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                c[3] = color4.rgb;
+                c[4] = color1.rgb * 0.667;
+                c[5] = color2.rgb * 0.667;
+                c[6] = color3.rgb * 0.667;
+                c[7] = color4.rgb * 0.667;
+                ncolors = 8;
+            } else if( palette == 7 ) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                c[3] = color4.rgb;
+                ncolors = 4;
+            } else if( palette == 8 && shades ) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                c[3] = color4.rgb;
+                c[4] = color5.rgb;
+                c[5] = color6.rgb;
+                c[6] = color1.rgb * 0.667;
+                c[7] = color2.rgb * 0.667;
+                c[8] = color3.rgb * 0.667;
+                c[9] = color4.rgb * 0.667;
+                c[10] = color5.rgb * 0.667;
+                c[11] = color6.rgb * 0.667;
+                ncolors = 12;
+            } else if( palette == 8 ) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                c[3] = color4.rgb;
+                c[4] = color5.rgb;
+                c[5] = color6.rgb;
+                ncolors = 6;
+            } else if( palette == 9 && shades ) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                c[3] = color4.rgb;
+                c[4] = color5.rgb;
+                c[5] = color6.rgb;
+                c[6] = color7.rgb;
+                c[7] = color8.rgb;
+
+                c[8]  = color1.rgb * 0.667;
+                c[9]  = color2.rgb * 0.667;
+                c[10] = color3.rgb * 0.667;
+                c[11] = color4.rgb * 0.667;
+                c[12] = color5.rgb * 0.667;
+                c[13] = color6.rgb * 0.667;
+                c[14] = color7.rgb * 0.667;
+                c[15] = color8.rgb * 0.667;
+                ncolors = 16;
+            } else if( palette == 9 ) {
+                c[0] = color1.rgb;
+                c[1] = color2.rgb;
+                c[2] = color3.rgb;
+                c[3] = color4.rgb;
+                c[4] = color5.rgb;
+                c[5] = color6.rgb;
+                c[6] = color7.rgb;
+                c[7] = color8.rgb;
+                ncolors = 8;
+            }
+
+            vec3 bestColor = c[0];
+            float bestDist = 100.0;
+
+            for( int i=0; i<ncolors; i++ ) {
+                float l = length(c[i] - rgb);
+                if( l < bestDist ) {
+                    bestDist = l;
+                    bestColor = c[i];
+                }
+            }
+
+            gl_FragColor = mix(texColor, vec4(bestColor,1.0) * a, alpha);
+        }
+
+    ]]></shader>
+
+</effect>

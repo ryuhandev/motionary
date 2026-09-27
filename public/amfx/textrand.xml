@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.textrand" name="@am:string/effect_textrandomize_name" desc="@am:string/effect_textrandomize_desc" affinity="text!" type="text" category="text" tags="text,propAdjust" thumb="thumb/textrand.webp">
+
+    <params>
+        <spinner id="amount" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_amount" type="percent" step="0.001" />
+        <spinner id="evo" default="0.0" min="0.0" max="25.0" step="0.01" label="@am:string/effect_param_evolution" />
+        <spinner id="seed" default="0.0" min="0.0" max="25.0" step="0.01" label="@am:string/effect_param_seed" />
+        <spinner id="start" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_start" type="percent" step="0.001" />
+        <spinner id="end" default="1.0" min="0.0" max="1.0" label="@am:string/effect_param_end" type="percent" step="0.001" />
+        <selector id="charset" default="0" style="dropdown" label="@am:string/effect_param_charset" >
+            <choice label="@am:string/effect_param_text_uppercase_letters" value="0" />
+            <choice label="@am:string/effect_param_text_lowercase_letters" value="1" />
+            <choice label="@am:string/effect_param_text_mixed_case_letters" value="2" />
+            <choice label="@am:string/effect_param_text_digits" value="3" />
+            <choice label="@am:string/effect_param_text_digits_letters" value="4" />
+            <choice label="@am:string/effect_param_text_layer_text" value="5" />
+            <choice label="@am:string/effect_param_text_asterisk" value="6" />
+            <choice label="@am:string/effect_param_text_bullet" value="7" />
+            <choice label="@am:string/effect_param_text_underbar" value="8" />
+            <choice label="@am:string/effect_param_text_blank" value="9" />
+            <choice label="@am:string/effect_param_text_diamond" value="10" />
+            <choice label="@am:string/effect_param_text_dash" value="11" />
+            <choice label="@am:string/effect_param_text_symbols" value="12" />
+            <choice label="@am:string/effect_param_text_digits_letters_symbols" value="13" />
+            <choice label="@am:string/effect_param_text_extended" value="14" />
+        </selector>
+        <switch id="preserveSpace" default="true" label="@am:string/effect_param_preservespace" />
+    </params>
+
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p,pprev) {
+
+            let prefix = el.text.slice(0, Math.round(el.text.length * p.start));
+            let middle = el.text.slice( Math.round(el.text.length * p.start), Math.round(el.text.length * p.end));
+            let suffix = el.text.slice(Math.round(el.text.length * p.end));
+
+            //AM.log(`textrand: el.text="${el.text}" prefix="${prefix}" middle="${middle}" suffix="${suffix}" `);
+
+            let randomized = "";
+            let charset = p.charset;
+
+            for (let i = 0; i < middle.length; i++) {
+                let ch = middle.charAt(i);
+                //AM.log(`textrand:   i=${i} ch=${ch} r=${AM.simplexNoise(i*7.3921, p.seed)} p.amount=${p.amount}" `);
+                if( (AM.simplexNoise(i*7.3921, p.seed)+1)/2 >= p.amount || (p.preserveSpace && ch==" ") ) {
+                    randomized = randomized + ch;
+                } else {
+                    let chars = "";
+                    if( charset == 0 ) {
+                        chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    } else if (charset == 1 ) {
+                        chars = "abcdefghijklmnopqrstuvwxyz";
+                    } else if (charset == 2 ) {
+                        chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+                    } else if (charset == 3 ) {
+                        chars = "0123456789";
+                    } else if (charset == 4 ) {
+                        chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+                    } else if (charset == 5 ) {
+                        chars = el.text;
+                    } else if (charset == 6 ) {
+                        chars = "*";
+                    } else if (charset == 7 ) {
+                        chars = "•";
+                    } else if (charset == 8 ) {
+                        chars = "_";
+                    } else if (charset == 9 ) {
+                        chars = " ";
+                    } else if (charset == 10 ) {
+                        chars = "◊";
+                    } else if (charset == 11 ) {
+                        chars = "-";
+                    } else if (charset == 12 ) {
+                        chars = "+=-!@#$%^*()[]{}:;\/,.<>~`";
+                    } else if (charset == 13 ) {
+                        chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=-!@#$%^*()[]{}:;\/,.<>~`";
+                    } else if (charset == 14 ) {
+                        chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzΩµ+=-!@#$%^*()[]{}:;\/,.<>~`∈∑ΨΦδγβϰψπλ∞≤≥≠àãëæñüóç¶‽∙✓✗➝←";
+                    }
+
+                    randomized = randomized + chars.charAt(Math.floor(( (AM.simplexNoise(i*7.3921, p.evo + 0.5)+1)*92.1734*chars.length) % chars.length));
+                }
+            }
+
+            el.text = prefix + randomized + suffix;
+
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.shake2" name="@am:string/effect_shake_name" desc="@am:string/effect_shake_desc" auto-transform="true" category="transform" tags="transform,auto,shake,propAdjust,parenting,camera" thumb="thumb/shake.webp">
+
+    <params>
+        <spinner id="mag" min="0" max="2000" step="1" default="50" label="@am:string/effect_param_mag" />
+<!--        <spinner id="speed" min="0" max="2000" step="0.01" default="1" label="@am:string/effect_param_speed" />-->
+        <spinner id="freq" default="2.0" min="0.0" max="16.0" step="0.01" label="@am:string/effect_param_freq" ticks="0.5,1,2,3,4,5,6,7,8,9,10" type="hz" />
+        <spinner id="evolution" min="0" max="2000" step="0.01" default="0" label="@am:string/effect_param_evolution" />
+        <spinner id="seed" min="0" max="5" step="0.01" default="0" label="@am:string/effect_param_seed" />
+        <spinner id="angle" default="45.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+        <spinner id="slack" min="0" max="1" step="0.01" default="0.25" label="@am:string/effect_param_slack" type="percent" />
+        <spinner id="zshake" min="0" max="2000" step="1" default="0" label="@am:string/effect_param_shake_z" />
+
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let absTimeSeconds = env.frame/env.fps;
+            let evolution = p.evolution + p.freq;
+
+            var a = p.angle * (Math.PI / 180);
+            var s = Math.sin(a);
+            var c = Math.cos(a);
+
+            let dx = AM.simplexNoise(evolution, p.seed*49235.319798);
+            let dy = AM.simplexNoise(evolution+7468.329, p.seed*19337.940385);
+            let dz = AM.simplexNoise(evolution+14192.277, p.seed*71401.168533);
+            dx *= p.mag;
+            dy *= p.mag * p.slack;
+            dz *= p.zshake;
+
+            let rx = dx * c - dy * s;
+            let ry = dx * s + dy * c;
+
+            el.transform.location.x += rx;
+            el.transform.location.y += ry;
+            el.transform.location.z += dz;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

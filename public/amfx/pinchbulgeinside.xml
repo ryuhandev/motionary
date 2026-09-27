@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.pinchbulgeinside" name="@am:string/effect_pinchbulgeinside_name" desc="@am:string/effect_pinchbulgeinside_desc" category="distort" tags="distort,raster,membersOnly" thumb="thumb/innerbulge.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="strength" default="0.5" min="-1" max="1" label="@am:string/effect_param_strength" step="0.01" ticks="-0.5,0,0.5"/>
+        <spinner id="radius" default="0.3" min="0.0" max="2.5" label="@am:string/effect_param_radius" step="0.005" />
+        <spinner id="feather" default="0.1" min="0.0" max="1.0" label="@am:string/effect_param_feather" step="0.005" />
+        <switch id="gaussian" label="@am:string/effect_param_gaussian" default="false" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        float gsmooth(float low, float high, float value) {
+            float p = clamp((value-low)/(high-low),0.,1.);
+            p -= 1.0;
+            return pow(2.71828,-((p*p)/0.125));
+        }
+
+        void main() {
+            vec2 st = acLayerNorm;
+            vec2 center = centerPoint/1000. * vec2(1.,-1.);
+
+            float insideLayer = step(0.0,acLayerNorm.x) * step(acLayerNorm.x,1.0) * step(0.0,acLayerNorm.y) * step(acLayerNorm.y,1.0);
+            float damping = smoothstep(0.0,feather,acLayerNorm.x) * smoothstep(0.0,feather,acLayerNorm.y) * smoothstep(1.0,1.0-feather,acLayerNorm.x) * smoothstep(1.0,1.0-feather,acLayerNorm.y);
+
+            st -= 0.5;
+            st.x *= acLayerSize.x / acLayerSize.y;
+            st -= center;
+            float dist = length(st);
+            vec2 prevSt = st;
+            if ( dist < radius ) {
+                float p = dist / radius;
+
+                //p *= damping * insideLayer;
+
+                if(strength > 0.) {
+                    if( gaussian ) {
+                        st *= mix(1.0, gsmooth(0.0, radius / dist, p), strength * 0.75);
+                    } else {
+                        st *= mix(1.0, smoothstep(0.0, radius / dist, p), strength * 0.75);
+                    }
+                } else {
+                    st *= mix(1.0, pow(p, 1.0 + strength * 0.75) * radius / dist, 1.0 - p);
+                }
+
+                st = mix(prevSt,st,damping*insideLayer);
+            }
+            st += center;
+            st.x /= acLayerSize.x / acLayerSize.y;
+            st += 0.5;
+
+            gl_FragColor = texture2DCv(inputImg.texture,l2s(st));
+
+        }
+
+    ]]></shader>
+
+</effect>

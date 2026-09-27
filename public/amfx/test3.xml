@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.test3" name="@string/name" desc="@string/desc" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Test3</string>
+            <string name="desc">Test shader - please ignore</string>
+            <string name="strength">Strength</string>
+            <string name="color">Color</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            gl_FragColor = texture2DCv(inputImg.texture,acScreenNorm)*((sin(acTime)+1.0)/2.0);
+        }
+
+    ]]></shader>
+
+</effect>

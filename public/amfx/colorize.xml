@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.colorize" afxver="2" name="@am:string/effect_colorize_name" desc="@am:string/effect_colorize_desc" category="color" tags="color, stylish, raster" thumb="thumb/colortint.png">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <hue-disc id="tint" label="@am:string/effect_param_tint" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        vec3 rotUV( vec3 yuv, float degrees ) {
+            float rad = degrees * 0.0174533;
+            mat3 rmat = mat3(
+                1.0,  0.0,       0.0,
+                0.0,  cos(rad),  sin(rad),
+                0.0,  -sin(rad), cos(rad)
+            );
+            return yuv * rmat;
+        }
+
+        vec3 hsv2rgb(vec3 c)
+        {
+            vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+            vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+            return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+        }
+
+        void main() {
+            mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+            mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec3 rgb = texColor.rgb;
+            float a = texColor.a;
+            vec3 yuv = rgb * rgb2yuv;
+
+            vec3 tintedYUV = (hsv2rgb(vec3(tint.x/360.,1.,0.5)) * rgb2yuv);
+
+            // -- Do work here in YUV space ----
+            yuv.yz = mix(yuv.yz, tintedYUV.yz, tint.y * a);
+
+            // -- Back to RGB and return result ---
+            rgb = yuv * yuv2rgb;
+            gl_FragColor = vec4(rgb,a);
+        }
+
+    ]]></shader>
+
+</effect>

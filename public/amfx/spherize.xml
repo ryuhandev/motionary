@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.spherize" name="@am:string/effect_spherize_name" desc="@am:string/effect_spherize_desc" category="3d" tags="3d,lighting,raster" experimental="false" thumb="thumb/spherize.webp" deprecated="true">
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <orient id="orient" label="@am:string/effect_param_orientation" />
+        <spinner id="repeatx" default="1" min="0.01" max="20.0" step="0.01" label="@am:string/effect_param_repeat_x" />
+        <spinner id="repeaty" default="1" min="0.01" max="20.0" step="0.01" label="@am:string/effect_param_repeat_y" />
+        <!--<spinner id="scale" default="1" min="0.01" max="20.0" step="0.01" label="@am:string/effect_param_scale" />-->
+        <switch id="mirror" default="false" label="@am:string/effect_param_mirror" />
+        <spinner id="zdist" default="0" min="-10.0" max="10.0" label="@am:string/effect_param_distance" step="0.01" ticks="1.0" />
+
+        <section text="@am:string/effect_section_lightsource" />
+        <switch id="enableLight" default="true" label="@am:string/effect_param_lighting_enable" enableTargets="lightIntensity,lightColor,lightDir,lightDepth" />
+        <spinner id="lightIntensity" default="1.0" min="0" max="2" step="0.001" label="@am:string/effect_param_intensity" type="percent" enabled="false" />
+        <color id="lightColor" default="#FFFFFFFF" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <point id="lightDir" default="75,-75" label="@am:string/effect_param_direction" enabled="false" />
+        <spinner id="lightDepth" default="200" min="-300" max="300" label="@am:string/effect_param_elevation" step="1" ticks="0,50,100,150,200" enabled="false" />
+        <!--<point id="rot" label="Rotation" />-->
+        <!--<color id="oldcolor" default="#FFFF0000" label="@am:string/effect_param_color_replace" alpha="false" />-->
+        <!--<color id="newcolor" default="#FF0000FF" label="@am:string/effect_param_color_new" alpha="false" />-->
+        <!--<spinner id="feather" default=".25" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_feather" type="percent" />-->
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        void main() {
+
+            float r = 1.;
+
+            vec2 st = acLayerNorm;
+            st -= 0.5;
+            st *= 2.0;
+            st.x *= acLayerSize.x/acLayerSize.y;
+
+            st = st * 10.0 / max(0.0001,zdist+10.0);
+
+            float dist = length(st)/r;
+            if( dist > 1. )
+                discard;
+
+            float height = sqrt(1.-dist*dist);
+            vec3 norm = normalize(vec3(st,height));
+
+            vec3 light = normalize(vec3(lightDir.x,-lightDir.y,lightDepth+zdist));
+            //light = (vec4(light,1.)*lightOrient).xyz;
+            float lum = dot(norm,light);
+
+            norm = normalize((vec4(norm,1.) * orient).xyz);
+
+            vec2 uv = vec2(
+                0.5 + atan(norm.z,norm.x) / 6.2831853072,
+                0.5 + asin(norm.y)/3.14159
+            );
+
+            uv.x *= repeatx;
+            uv.y *= repeaty;
+
+            if( mirror ) {
+                uv.x = abs(mod(uv.x,2.0)-1.0);
+                uv.y = abs(mod(uv.y,2.0)-1.0);
+            } else {
+                uv.x = mod(uv.x,1.0);
+                uv.y = mod(uv.y,1.0);
+            }
+
+            uv.x = 1.0-uv.x;
+
+            float pix = 1.0/min(acLayerSize.x,acLayerSize.y);
+
+            uv -= 0.5;
+            uv *= 1.0-(2.0*pix);
+            uv += 0.5;
+
+            vec4 texColor = texture2DCv(inputImg.texture,l2s(uv));
+            if( enableLight ) {
+                texColor.rgb *= lum*lightIntensity*lightColor.rgb;
+            }
+            gl_FragColor = texColor;
+        }
+
+    ]]></shader>
+
+</effect>

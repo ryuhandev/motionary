@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.displacemap" name="@am:string/effect_displacemap_name" desc="@am:string/effect_displacemap_desc" category="distort" thumb="thumb/displacemap.png" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Fractal Warp</string>-->
+            <!--<string name="desc">Distorts the layer using a fractal displacement map. For a heatwave effect, keyframe Parallax Y. For a handmade glass window effect, turn up intensity and scale, turn on Screen Space, and keyframe the layer position.</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="comp" srcType="comp" />
+        <point id="offs" label="@am:string/effect_param_offset" />
+        <selector id="type" default="0" style="radio" label="@am:string/effect_param_channel" >
+            <choice label="Lum" value="0" />
+            <choice label="R" value="1" />
+            <choice label="G" value="2" />
+            <choice label="B" value="3" />
+        </selector>
+        <selector id="edges" default="1" style="radio" label="@am:string/effect_param_edges" >
+            <choice label="@am:string/effect_param_edges_repeat" value="0" />
+            <choice label="@am:string/effect_param_edges_mirror" value="1" />
+            <choice label="@am:string/effect_param_edges_transparent" value="2" />
+            <choice label="@am:string/effect_param_edges_tile" value="3" />
+        </selector>
+        <switch id="fromctr" default="false" label="@am:string/effect_param_from_center" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+
+        void main() {
+
+            vec2 adjOffs = offs / 1000.0;
+            adjOffs.x *= acLayerSize.x/acLayerSize.y * -1.0;
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float p;
+            if( type==0 ) {
+                p = texColor.r*0.2126 + texColor.g*0.7152 + texColor.b*0.0722;
+            } else if( type == 1 ) {
+                p = texColor.r;
+            } else if( type == 2 ) {
+                p = texColor.g;
+            } else if( type == 3 ) {
+                p = texColor.b;
+            } else {
+                adjOffs *= 0.0;
+            }
+            if( fromctr ) {
+                p = (p-0.5)*2.0;
+            }
+            if( invert ) {
+                adjOffs *= (1.0-p) * texColor.a;
+            } else {
+                adjOffs *= p * texColor.a;
+            }
+            vec2 sample = acScreenNorm + adjOffs;
+            if(edges==0) {
+                gl_FragColor = texture2DCv(comp.texture,sample);
+            } else if(edges==1) {
+                sample = vec2(1.0,1.0) - abs(mod(sample,vec2(2.0,2.0))-vec2(1.0,1.0));
+                gl_FragColor = texture2DCv(comp.texture,sample) * texColor.a;
+            } else if(edges==2) {
+                if( sample.x < 0.0 || sample.x > 1.0 || sample.y < 0.0 || sample.y > 1.0 ) {
+                    gl_FragColor = vec4(0.0,0.0,0.0,0.0);
+                } else {
+                    gl_FragColor = texture2DCv(comp.texture,sample) * texColor.a;
+                }
+            } else if(edges==3) {
+                sample = mod(sample,vec2(1.0,1.0));
+                gl_FragColor = texture2DCv(comp.texture,sample) * texColor.a;
+            } else {
+                gl_FragColor = texture2DCv(comp.texture,sample) * texColor.a;
+            }
+
+        }
+
+    ]]></shader>
+
+</effect>

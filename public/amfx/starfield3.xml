@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.starfield3" name="@am:string/effect_starfield_name" desc="@am:string/effect_starfield_desc" category="procedural" tags="procedural,random,raster" thumb="thumb/starfield.webp">
+
+    <!--
+    Based on the 'Star Nest' shader by Pablo RomÃ¡n Andrioli
+
+    Original 'Star Nest' shader provided under the MIT License.
+
+    https://www.shadertoy.com/view/XlfGRj
+    -->
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Starfield</string>-->
+            <!--<string name="desc">An parallax starfield that can be animated. To change the color, combine with the Hue Shift effect.</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="offset" label="@am:string/effect_param_offset" />
+        <spinner id="zoom" default="0.3" min="0.01" max="9.00" label="@am:string/effect_param_scale" step="0.01" />
+        <!--<spinner id="speed" default="0.010" min="0.001" max=".500" label="@am:string/effect_param_Speed" />-->
+        <!--<spinner id="offsx" default="0" min="-1000" max="1000" label="@am:string/effect_param_Offset X" step="0.005" />-->
+        <!--<spinner id="offsy" default="0" min="-1000" max="1000" label="@am:string/effect_param_Offset Y" step="0.005" />-->
+        <spinner id="brightness" default="0.0015" min="0.0001" max="0.300" label="@am:string/effect_param_brightness" step="0.0001" multiplier="10" />
+        <spinner id="darkmatter" default="0.300" min="0.001" step="0.001" max="2.00" label="@am:string/effect_param_darkmatter" />
+        <!--<slider id="green" default="1.0" min="0.0" max="2.0" label="Green" />-->
+        <!--<slider id="blue" default="1.0" min="0.0" max="2.0" label="Blue" />-->
+        <!--<slider id="strength" default="1.0" min="0.0" max="100.0" label="@string/strength" />-->
+        <!--<color id="userColor" default="#FF0088FF" label="Color" alpha="false" />-->
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        //#define iterations 17
+        //#define formuparam 0.53
+        //
+        //#define volsteps 20
+        //#define stepsize 0.1
+        //
+        //#define zoom   0.800
+        //#define tile   0.850
+        //#define speed  0.010
+        //
+        //#define brightness 0.0015
+        //#define darkmatter 0.300
+        //#define distfading 0.730
+        //#define saturation 0.450
+
+        #define iterations 14
+        #define formuparam 0.53
+
+        #define volsteps 16
+        #define stepsize 0.1
+
+        //#define zoom   0.300
+        #define tile   0.850
+        //#define speed  0.010
+
+        //#define brightness 0.0015
+        //#define darkmatter 0.300
+        #define distfading 0.730
+        #define saturation 0.450
+
+        void main() {
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            if( texColor.a <= 0.0001 )
+                discard;
+
+            // --- Inputs ------------------------------------
+            vec2 fragCoord = gl_FragCoord.xy;
+            vec2 iResolution = acScreenSize;
+            //float iTime = acTime;
+            vec2 iMouse = vec2(.5,.5);
+
+            // --- Shader -------------------------------------
+
+            //get coords and direction
+
+            vec2 uv = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/acLayerSize;
+            uv.y*=acLayerSize.y/acLayerSize.x;
+            //vec2 uv=fragCoord.xy/iResolution.xy-.5;
+            //uv.y*=iResolution.y/iResolution.x;
+
+            vec3 dir=vec3(uv*zoom,1.);
+            //float time=iTime*speed+.25;
+
+            //mouse rotation
+            float a1=.5+iMouse.x/iResolution.x*2.;
+            float a2=.8+iMouse.y/iResolution.y*2.;
+            mat2 rot1=mat2(cos(a1),sin(a1),-sin(a1),cos(a1));
+            mat2 rot2=mat2(cos(a2),sin(a2),-sin(a2),cos(a2));
+            dir.xz*=rot1;
+            dir.xy*=rot2;
+            vec3 from=vec3(1.,.5,0.5);
+            from+=vec3(-offset/1000.,-2.);
+            from.xz*=rot1;
+            from.xy*=rot2;
+
+            //volumetric rendering
+            float s=0.1,fade=1.;
+            vec3 v=vec3(0.);
+            //vec3 rgb = userColor.rgb;
+            for (int r=0; r<volsteps; r++) {
+                vec3 p=from+s*dir*.5;
+                p = abs(vec3(tile)-mod(p,vec3(tile*2.))); // tiling fold
+                float pa,a=pa=0.;
+                for (int i=0; i<iterations; i++) {
+                    p=abs(p)/dot(p,p)-formuparam; // the magic formula
+                    a+=abs(length(p)-pa); // absolute sum of average change
+                    pa=length(p);
+                }
+                float dm=max(0.,darkmatter-a*a*.001); //dark matter
+                a*=a*a; // add contrast
+                if (r>6) fade*=1.-dm; // dark matter, don't render near
+                //v+=vec3(dm,dm*.5,0.);
+                v+=fade;
+                //v+=vec3(pow(s,1. + rgb.r*3.),pow(s,1. + rgb.g*3.),pow(s,1. + rgb.b*3.))*a*brightness*fade; // coloring based on distance
+                v+=vec3(s,s*s,s*s*s*s)*a*brightness*fade; // coloring based on distance
+                fade*=distfading; // distance fading
+                s+=stepsize;
+            }
+            v=mix(vec3(0.,v.g,length(v)),v,saturation); //color adjust
+            gl_FragColor = vec4(v*.01,1.);
+        }
+
+    ]]></shader>
+
+</effect>

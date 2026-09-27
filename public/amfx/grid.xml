@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.grid" name="@am:string/effect_grid_name" desc="@am:string/effect_grid_desc" category="procedural" tags="procedural,pattern,raster" thumb="thumb/grid2.png" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="position" label="@am:string/effect_param_offset" />
+        <spinner id="spacing" default=".1" min=".01" max="2.0" label="@am:string/effect_param_spacing" step="0.001" ticks="10" />
+        <spinner id="width" default="0.005" min="0.0" max="2.0" label="@am:string/effect_param_width" step="0.001" ticks="0.5" />
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="false" />
+        <switch id="punchout" default="false" label="@am:string/effect_param_punchout" />
+        <spinner id="smoothing" default="0.05" min="0.0" max="1.0" label="@am:string/effect_param_smoothing" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st;
+            if(screenSpace) {
+                //st = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/length(acLayerSize);
+                st = acScreenNorm;
+                st.x *= acScreenSize.x/acScreenSize.y;
+                st.y = 1. - st.y;
+            } else {
+                st = acLayerNorm;
+                st.x *= acLayerSize.x/acLayerSize.y;
+                st.y = 1. - st.y;
+            }
+            st -= 0.5;
+            st -= position/1000.;
+
+            float px = mod( st.x, spacing ) / spacing;
+            float py = mod( st.y, spacing ) / spacing;
+
+            px = 1.- abs(px - 0.5)*2.;
+            py = 1.- abs(py - 0.5)*2.;
+
+            float w = clamp(width/spacing,0.,1.);
+            float s = w*smoothing;
+
+            s = mix(s,max(s,0.5*w),smoothstep(0.012,0.01,width));
+            s = mix(s,max(s,w),smoothstep(0.006,0.005,width));
+
+            //px = smoothstep(w,w-s,px)*smoothstep(0.0,s,px);
+            //py = smoothstep(w,w-s,py)*smoothstep(0.0,s,py);
+
+            px = smoothstep(1.-w-s, 1.-w+s,px);
+            py = smoothstep(1.-w-s, 1.-w+s,py);
+
+            float p = max(px,py);
+
+            vec4 c = color * p;
+            if( punchout ) {
+                gl_FragColor = texColor * (1.0-p);
+            } else {
+                c *= texColor.a;
+                gl_FragColor = c + (texColor*(1.0-c.a));
+            }
+        }
+
+    ]]></shader>
+
+</effect>

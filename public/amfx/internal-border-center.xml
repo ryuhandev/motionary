@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.internal.border-center" name="@string/name" desc="@string/desc" internal="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">[INTERNAL] Border</string>
+            <string name="desc">[INTERNAL] Border</string>
+            <string name="radius">Radius</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="xDistBuf" srcType="buffer" />
+        <slider   id="b0size" default="5.0" min="0.0" max="200.0" label="Inner Size" logscale="2.5" />
+        <color    id="b0color" default="#FFFFFFFF" label="Inner Color" alpha="true" />
+    </params>
+
+    <passes>
+        <pass target="xDistBuf" />
+        <pass />
+    </passes>
+
+    <shader type="fragment"><![CDATA[
+
+        #define MULTISAMPLE 1.0
+        #define MAX_RADIUS 16383.0
+
+        vec2 encodeFloat(float v) {
+            highp vec2 enc = fract(vec2(1.0, 255.0)*v);
+            enc.x -= enc.y/255.0;
+            return enc;
+        }
+
+        float decodeFloat(vec2 v) {
+            return dot(v,vec2(1.0,1.0/255.0));
+        }
+
+        struct Border {
+            int direction;
+            float size;
+            vec4 color;
+        };
+
+        void main() {
+
+            float radius=b0size*MULTISAMPLE;
+
+            int from = -max(1,int(radius));
+            int to = max(1,int(radius));
+
+            // Size of a pixel
+            float px = 1.0 / 2048.0;
+            vec2 fullViewSize = getTexSize(inputImg.size);
+            float py = 1.0 / (2048.0 / (fullViewSize.x/fullViewSize.y));
+
+            if( acPass==0 ) {
+
+                // Calculate distance on X-axis and encode in a texture
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float x = float(i);
+
+                    vec4 sample = texture2DCv(inputImg.texture,vec2(acScreenNorm.s + x*(px/MULTISAMPLE),acScreenNorm.t));
+                    float xdistOut = sample.a > 0.0 ? abs(x) : radius*2.0;
+                    float xdistIn = sample.a < 0.003 ? abs(x) : radius*2.0;
+                    nearestOutside = min(nearestOutside,xdistOut);
+                    nearestInside = min(nearestInside,xdistIn);
+
+                }
+
+                gl_FragColor = vec4(encodeFloat(nearestOutside/MAX_RADIUS),encodeFloat(nearestInside/MAX_RADIUS));
+
+            } else {
+
+                // Final pass
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float y = float(i);
+
+                    vec4 sample = texture2DCv(xDistBuf.texture,vec2(acScreenNorm.s,acScreenNorm.t + y*(py/MULTISAMPLE)));
+
+                    float xdistOut = decodeFloat(sample.rg) * MAX_RADIUS;
+                    float xdistIn = decodeFloat(sample.ba) * MAX_RADIUS;
+                    float ydist = abs(y);
+                    float distOut = length(vec2(xdistOut,ydist));
+                    float distIn = length(vec2(xdistIn,ydist));
+
+                    nearestInside = min(nearestInside,distIn);
+                    nearestOutside = min(nearestOutside,distOut);
+                }
+
+                float nearestMid = max(nearestInside, nearestOutside);
+
+                vec4 original = texture2DCv(inputImg.texture,acScreenNorm.st);
+
+                vec4 result = original;
+
+                if( b0size > 0.003 ) {
+                    //if( direction == -1 ) {
+                    //    vec4 c = mix(b0color,  vec4(0.0), smoothstep(1.0-1.5/b0size,1.0,nearestInside/(b0size/MULTISAMPLE))) * original.a;
+                    //    result = c + result*(1.0-c.a);
+                    //} else if (direction == 0) {
+                        vec4 c = mix(b0color, vec4(0.0), smoothstep(1.0-1.5/b0size,1.0,nearestMid/(b0size/MULTISAMPLE)));;
+                        result = c + result*(1.0-c.a);
+                    //} else if (direction == 1) {
+                    //    vec4 c = mix(b0color,  vec4(0.0), smoothstep(1.0-1.5/b0size,1.0,nearestOutside/(b0size/MULTISAMPLE))) * (1.-original.a);
+                    //    result = result + c*(1.0-result.a);
+                    //}
+                }
+
+                gl_FragColor = result;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

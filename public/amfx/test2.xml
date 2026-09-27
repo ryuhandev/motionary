@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.test2" name="@string/name" desc="@string/desc" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Test2-PNG</string>
+            <string name="desc">Test shader - please ignore</string>
+            <string name="strength">Strength</string>
+            <string name="color">Color</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="content" srcType="content" />
+        <texture id="inputImg" src="testimg.webp" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            //vec2 st = ((acScreenNorm*acScreenSize)-acLayerCenter)/acLayerSize;
+            vec2 st = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/acLayerSize;
+            gl_FragColor = texture2DCv(inputImg.texture,st) * texture2DCv(content.texture,acScreenNorm);
+        }
+
+    ]]></shader>
+
+</effect>

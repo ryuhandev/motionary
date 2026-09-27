@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.colortint" name="@am:string/effect_colorize_name" desc="@am:string/effect_colorize_desc" category="color" tags="color,stylish,raster" deprecated="true" thumb="thumb/colortint.png">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Colorize</string>-->
+            <!--<string name="desc">Changes the hue of the image, keeping the original luminance</string>-->
+            <!--<string name="hue">Hue</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <hue-disc id="tint" label="@am:string/effect_param_tint" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        vec3 rotUV( vec3 yuv, float degrees ) {
+            float rad = degrees * 0.0174533;
+            highp mat3 rmat = mat3(
+                1.0,  0.0,       0.0,
+                0.0,  cos(rad),  sin(rad),
+                0.0,  -sin(rad), cos(rad)
+            );
+            return yuv * rmat;
+        }
+
+        vec3 hsv2rgb(vec3 c)
+        {
+            vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+            vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+            return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+        }
+
+        void main() {
+            //float hue = lift.x;
+            //float strength = lift.y;
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            highp vec3 rgb = texColor.rgb;
+            lowp float a = texColor.a;
+            highp vec3 yuv = rgb * rgb2yuv;
+
+            highp vec3 tintedYUV = (hsv2rgb(vec3(tint.x/360.,1.,0.5)) * rgb2yuv);// * tint.y;
+
+            // -- Do work here in YUV space ----
+
+            //yuv = yuv * huemat;
+            //float y = yuv.x;
+
+            //float ygamma = pow(abs((y-0.5)*2.),2.);
+
+            yuv.yz = mix(yuv.yz, tintedYUV.yz, tint.y * a);
+            //yuv.x += tint.z * a;
+
+            // -- Back to RGB and return result ---
+            rgb = yuv * yuv2rgb;
+            gl_FragColor = vec4(rgb,a);
+        }
+
+    ]]></shader>
+
+</effect>

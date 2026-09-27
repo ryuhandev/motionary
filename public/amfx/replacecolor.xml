@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.replacecolor" name="@am:string/effect_replacecolor_name" desc="@am:string/effect_replacecolor_desc" category="color" tags="color,rasster" thumb="thumb/replacecolor.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="oldcolor" default="#FFFF0000" label="@am:string/effect_param_color_replace" alpha="false" />
+        <color id="newcolor" default="#FF0000FF" label="@am:string/effect_param_color_new" alpha="false" />
+        <spinner id="threshold" default=".25" min="0.0" max="4.0" step="0.01" label="@am:string/effect_param_threshold" type="percent" />
+        <spinner id="feather" default=".25" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_feather" type="percent" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+        <switch id="lockLuminance" label="@am:string/effect_param_lock_luminance" default="false" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            if( env.editMode=="eyedropper-drag" && env.selected ) {
+                el.shaderGroups = [1];
+            } else {
+                el.shaderGroups = [0];
+            }
+            return el;
+        }
+
+    ]]></script>
+
+    <shader type="fragment" group="1"><![CDATA[
+
+        void main() {
+            gl_FragColor = texture2DCv(inputImg.texture,acScreenNorm);
+        }
+
+    ]]></shader>
+
+    <shader type="fragment" group="0" precision="high"><![CDATA[
+
+        void main() {
+
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec3 srcColor = texColor.rgb / texColor.a;
+            vec3 oldColorYUV = oldcolor.rgb * rgb2yuv;
+            vec3 srcColorYUV = srcColor * rgb2yuv;
+            vec3 diffYUV = abs(oldColorYUV - srcColorYUV);
+            diffYUV.yz *= 4.0;
+            diffYUV.x *= 0.5;
+            float diff = length(diffYUV);
+            float b = max(threshold-max(feather,0.0005),0.);
+            float a = min(threshold+max(feather,0.0005),4.);
+            float p = smoothstep( a, min(b,a-0.0005), diff);
+            vec3 newColorAdjRGB = newcolor.rgb/newcolor.a;
+            if(lockLuminance) {
+                vec3 newColorAdjYUV = newColorAdjRGB * rgb2yuv;
+                newColorAdjYUV.x = srcColorYUV.x;
+                newColorAdjRGB = newColorAdjYUV * yuv2rgb;
+            } else {
+                newColorAdjRGB = srcColor-(oldcolor.rgb/oldcolor.a)+newColorAdjRGB;
+            }
+            gl_FragColor = mix(texColor,vec4(mix(srcColor,newColorAdjRGB,p),1.0)*texColor.a,newcolor.a*alpha);
+
+        }
+
+    ]]></shader>
+
+</effect>

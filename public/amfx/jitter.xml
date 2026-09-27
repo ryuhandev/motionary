@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.jitter" name="@am:string/effect_jitter_name" desc="@am:string/effect_jitter_desc" auto-transform="true" category="transform" tags="transform,shake,propAdjust,parenting,camera" thumb="thumb/jitter.webp">
+
+    <params>
+        <spinner id="angle" default="45" min="0.0" max="180.0" label="@am:string/effect_param_angle" type="angle" />
+        <spinner id="freq" default="30.0" min="1.0" max="60.0" label="@am:string/effect_param_freq" />
+        <spinner id="mag" default="25" min="1" max="2000" label="@am:string/effect_param_mag" />
+        <slider id="seed" default="0" min="0" max="10" label="@am:string/effect_param_seed" />
+        <spinner id="slack" min="0" max="1" step="0.01" default="0.0" label="@am:string/effect_param_slack" type="percent" />
+        <spinner id="zjitter" min="0" max="2000" step="1" default="0" label="@am:string/effect_param_jitter_z" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let globalTime = env.duration * env.time;
+            let t = globalTime - (globalTime % (1.0/p.freq));
+            let a = p.angle * (Math.PI / 180);
+            let m  = AM.simplexNoise(t*637.729,0,p.seed*394.417);
+            el.transform.location.x += Math.sin(a) * p.mag * m;
+            el.transform.location.y += Math.cos(a) * p.mag * m;
+            if( p.slack > 0 ) {
+                a += Math.PI/2;
+                let m2  = AM.simplexNoise(t*951.217+149.231,0,p.seed*894.417+2773.908);
+                el.transform.location.x += Math.sin(a) * p.mag * m2 * p.slack;
+                el.transform.location.y += Math.cos(a) * p.mag * m2 * p.slack;
+            }
+            if( p.zjitter > 0 ) {
+                let zm  = AM.simplexNoise(t*637.729+241.386,0,p.seed*394.417+1729.361);
+                el.transform.location.z += zm * p.zjitter;
+            }
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

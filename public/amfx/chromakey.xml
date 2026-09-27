@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.chromakey" name="@am:string/effect_chromakey_name" desc="@am:string/effect_chromakey_desc" tags="key,matte,mask,compositing,greenscreen,essentials,raster" category="matte" thumb="thumb/chroma-key.png">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Chroma Key</string>-->
+            <!--<string name="desc">Removes all pixels close to a certain color from the layer. This can be used to remove a green-screen or blue-screen background, or to generate a mask from a solid color object in a photo or video.</string>-->
+            <!--<string name="threshold">Threshold</string>-->
+            <!--<string name="feather">Feather</string>-->
+            <!--<string name="invert">Invert</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="keyColor" default="#FF00FF00" label="@am:string/effect_param_keycolor" alpha="false" />
+        <spinner id="threshold" default="0.10" min="0.0" max="1.0" step="0.0002" label="@am:string/effect_param_threshold" />
+        <spinner id="feather" default="0.05" min="0.01" max="0.75" label="@am:string/effect_param_feather" />
+        <switch id="defringe" default="false" label="@am:string/effect_param_defringe" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            if( env.editMode=="eyedropper-drag" && env.selected ) {
+                el.shaderGroups = [1];
+            } else {
+                el.shaderGroups = [0];
+            }
+            return el;
+        }
+
+    ]]></script>
+
+    <shader type="fragment" group="1"><![CDATA[
+
+        void main() {
+            gl_FragColor = texture2DCv(inputImg.texture,acScreenNorm);
+        }
+
+    ]]></shader>
+
+    <shader type="fragment" group="0"><![CDATA[
+
+        void main() {
+
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+
+            vec3 keyYUV = keyColor.rgb * rgb2yuv;
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec3 texYUV = (texColor.a <= 0.0 ? vec3(0.0) : texColor.rgb / texColor.a) * rgb2yuv;
+
+            float dist = length((keyYUV - texYUV) * vec3(0.25,1.0,1.0));
+
+            float alpha = smoothstep( threshold-feather/2., threshold+feather/2., dist );
+            if(invert) alpha = 1.-alpha;
+            if(defringe) texColor -= (keyColor*(1.0-alpha));
+            vec2 halfFragSize = vec2(1.0)/getTexSize(inputImg.size)/2.;
+            if(acLayerNorm.x <= halfFragSize.x || acLayerNorm.x >= 1.0 - halfFragSize.x || acLayerNorm.y <= halfFragSize.y || acLayerNorm.y >= 1.0 - halfFragSize.y) {
+                alpha = 0.0;
+            }
+            gl_FragColor = vec4(texColor.rgb,1.0) * alpha*texColor.a;
+        }
+
+    ]]></shader>
+
+</effect>

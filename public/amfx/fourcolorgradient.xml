@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.fourcolorgradient" name="@am:string/effect_fourcolorgradient_name" desc="@am:string/effect_fourcolorgradient_desc" category="color" tags="color,stylish,raster,membersOnly" thumb="thumb/fourcolorgradient.webp" deprecated="false" experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="color1" default="#FFFF0000" label="@am:string/effect_param_color1" alpha="true" />
+        <point id="offset1" default="0.0,-500.0" label="@am:string/effect_param_position1" />
+        <color id="color2" default="#FF00FF00" label="@am:string/effect_param_color2" alpha="true" />
+        <point id="offset2" default="500.0,-500.0" label="@am:string/effect_param_position2" />
+        <color id="color3" default="#FF0000FF" label="@am:string/effect_param_color3" alpha="true" />
+        <point id="offset3" default="500.0,0.0" label="@am:string/effect_param_position3" />
+        <color id="color4" default="#FFFF00FF" label="@am:string/effect_param_color4" alpha="true" />
+        <point id="offset4" default="0.0,0.0" label="@am:string/effect_param_position4" />
+        <slider id="blend" default="1.0" min="0.25" max="2.0" step="0.001" label="@am:string/effect_param_blend" type="percent" />
+        <spinner id="alpha" default="0.75" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_alpha" type="percent" />
+        <selector id="blendMode" style="dropdown" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        float gradientNoise(in vec2 uv)
+        {
+            const vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
+            return fract(magic.z * fract(dot(uv, magic.xy)));
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm;
+
+            vec2 pos = (offset1*vec2(1,-1)) / 500.;
+            float t1 = length(st - pos);
+
+            pos = (offset2*vec2(1,-1)) / 500.;
+            float t2 = length(st - pos);
+
+            pos = (offset3*vec2(1,-1)) / 500.;
+            float t3 = length(st - pos);
+
+            pos = (offset4*vec2(1,-1)) / 500.;
+            float t4 = length(st - pos);
+
+            vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
+            float sw_t1 = smoothstep(0.0, 1.0, clamp((1.0 - t1), 0.0, 1.0));
+            float sw_t2 = smoothstep(0.0, 1.0, clamp((1.0 - t2), 0.0, 1.0));
+            float sw_t3 = smoothstep(0.0, 1.0, clamp((1.0 - t3), 0.0, 1.0));
+            float sw_t4 = smoothstep(0.0, 1.0, clamp((1.0 - t4), 0.0, 1.0));
+            color += color1 * pow(sw_t1, 1.0/blend);
+            color += color2 * pow(sw_t2, 1.0/blend);
+            color += color3 * pow(sw_t3, 1.0/blend);
+            color += color4 * pow(sw_t4, 1.0/blend);
+            color /= (sw_t1 + sw_t2 + sw_t3 + sw_t4);
+
+            color.a = 1.0;
+            color += (1.0/255.0) * gradientNoise(st) - (0.5/255.0);
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*color.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-color.rgb)),1.0) * texColor.a;
+            } else {
+                result = vec4(color.rgb,1.0)*texColor.a;
+            }
+            gl_FragColor = mix(texColor,result,alpha);
+        }
+
+    ]]></shader>
+
+</effect>

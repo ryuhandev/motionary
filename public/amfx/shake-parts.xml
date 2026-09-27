@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effect.shakeparts" name="@am:string/effect_shakeparts_name" desc="@am:string/effect_shakeparts_desc" category="transform" thumb="thumb/movealongpath.webp" experimental="true">
+
+    <params>
+        <spinner id="magnitude" default="10.0" min="0.0" max="1000.0" step="0.1" label="@am:string/effect_param_magnitude" ticks="-1.0,0.0,1.0" />
+        <spinner id="evolution" min="0" max="2000" step="0.01" default="0" label="@am:string/effect_param_evolution" />
+    </params>
+
+    <script external="com.alightcreative.script.shakeparts" />
+
+</effect>

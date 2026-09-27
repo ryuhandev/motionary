@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect afxver="2" id="com.alightcreative.effects.fractalwarp4" name="@am:string/effect_fractwarp_name" desc="@am:string/effect_fractwarp_desc" category="distort" tags="distort,fractal,glitch,raster" thumb="thumb/fractwarp.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="offs" label="@am:string/effect_param_position" />
+        <point id="parr" label="@am:string/effect_param_parallax" />
+        <spinner id="mag" default="0.2" min="-5.0" max="5.0" label="@am:string/effect_param_magnitude" snap="0" ticks="0" step="0.005" />
+        <spinner id="scale" default="1.0" min="0.1" max="4.0" label="@am:string/effect_param_detail" step="0.01" snap="1" ticks="1" />
+        <spinner id="intensity" default="0.5" min="0.25" max="0.75" label="@am:string/effect_param_lacunarity" step="0.01" snap="0.5" ticks="0.5" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+        <slider id="octaves" default="6" min="1" max="9" label="@am:string/effect_param_octaves" step="1" type="integer" ticks="1,2,3,4,5,6,7,8,9" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+
+        float random (vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
+
+        // Based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            vec2 u = f * f * (3.0 - 2.0 * f);
+
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+        float fbm (vec2 st, vec2 parallax, int octaveCount, float intens) {
+            // Initial values
+            float value = 0.;
+            float amplitude = 0.5;
+            float frequency = 0.;
+            //
+            // Loop of octaves
+            for (int i = 0; i < octaveCount; i++) {
+                value += amplitude * noise(st);
+                st *= 2.0;
+                st += parallax;
+                amplitude *= intens;
+            }
+            return value;
+        }
+
+
+        void main() {
+
+            vec2 st;
+            if( screenSpace ) {
+                st = acScreenNorm;
+                st.x *= acScreenSize.x/acScreenSize.y;
+            } else {
+                st = acLayerNorm;
+                st.x *= acLayerSize.x/acLayerSize.y;
+            }
+
+            st += offs/1000. * vec2(-1.,1.);
+
+            vec2 parallax = parr/200. * vec2(-1.,1.);
+
+            float dx = fbm( (st-vec2(0.5,0.5))*3.0*scale+vec2(0.5,0.5), parallax, int(octaves), intensity);
+            float dy = fbm( ((st+vec2(25.3,12.9))-vec2(0.5,0.5))*3.0*scale+vec2(0.5,0.5), parallax, int(octaves), intensity);
+
+            vec2 sample;
+            if( screenSpace ) {
+                sample = acScreenNorm;
+            } else {
+                sample = acLayerNorm;
+            }
+            sample = sample + vec2(dx-0.5,dy-0.5) * mag;
+
+            if( !screenSpace ) {
+                sample = (vec4(sample,0.0,1.0) * acLayerToScreen).xy;
+            }
+
+            gl_FragColor = texture2DCv(inputImg.texture,sample);
+        }
+
+    ]]></shader>
+
+</effect>

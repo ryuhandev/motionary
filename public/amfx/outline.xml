@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.outline" name="@string/name" desc="@string/desc" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Outline</string>
+            <string name="desc">Outline</string>
+            <string name="radius">Radius</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="hdist" srcType="buffer" />
+        <slider id="radius" default="5.0" min="0.5" max="200.0" label="@string/radius" logscale="2.5" />
+    </params>
+
+    <passes>
+        <pass target="hdist" />
+        <pass />
+    </passes>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            int from = -max(1,int(radius));
+            int to = max(1,int(radius));
+            // Size of a pixel
+            vec2 imgSize = getTexSize(inputImg.size);
+            float px = (1.0/imgSize.x);
+            float py = (1.0/imgSize.y);
+            if( acPass==0 ) {
+                float nearestOutside = radius * 2.0;
+                float nearestInside = radius * 2.0;
+                for(int i=from; i<to; i++ ) {
+                    vec4 inColor = texture2DCv(inputImg.texture,vec2(acScreenNorm.s + float(i)*px,acScreenNorm.t));
+                    float xdistOut = inColor.a > 0.0 ? abs(float(i)) : radius*2.0;
+                    float xdistIn = inColor.a < 0.003 ? abs(float(i)) : radius*2.0;
+                    nearestOutside = min(nearestOutside,xdistOut);
+                    nearestInside = min(nearestInside,xdistIn);
+                }
+                gl_FragColor = vec4(nearestOutside/radius, nearestInside/radius, 0.0, 1.0);
+            } else {
+                float tIn = 2.0;
+                float tOut = 2.0;
+                for(int i=from; i<to; i++ ) {
+                    vec4 inColor = texture2DCv(hdist.texture,vec2(acScreenNorm.s,acScreenNorm.t + float(i)*py));
+                    float xdistOut = inColor.r;
+                    float xdistIn = inColor.g;
+                    float ydist = abs(float(i))/radius;
+                    float distOut = length(vec2(xdistOut,ydist));
+                    float distIn = length(vec2(xdistIn,ydist));
+                    tIn = min(tIn,distIn);
+                    tOut = min(tOut,distOut);
+                }
+                float tMid = tIn*2.0 + tOut*2.0;
+                vec4 original = texture2DCv(inputImg.texture,acScreenNorm.st);
+                vec4 outColor = mix(vec4(1.0,0.0,0.0,1.0), vec4(0.0), smoothstep(1.0-1.5/radius,1.0,tOut));
+                vec4 inColor = mix(vec4(0.0,0.0,1.0,1.0), vec4(0.0), smoothstep(1.0-1.5/radius,1.0,tIn)) * original.a;
+                vec4 midColor = mix(vec4(0.0,1.0,0.0,1.0), vec4(0.0), smoothstep(1.0-1.5/radius,1.0,tMid));
+                vec4 result = outColor;
+                result = original + result*(1.0-original.a);
+                result = inColor + result*(1.0-inColor.a);
+                result = midColor + result*(1.0-midColor.a);
+                gl_FragColor = result;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,150 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.chromakey-adv"
+    name="@am:string/effect_advanced_chroma_key_name"
+    desc="@am:string/effect_advanced_chroma_key_desc"
+    tags="key,matte,mask,compositing,greenscreen,raster"
+    category="matte"
+    experimental="false"
+    thumb="thumb/chroma-key.png">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        
+        <!-- COLOR 1 -->
+        <section text="@am:string/effect_param_color1" hintType="editFirst" />
+        <switch id="c1active" default="true" label="@am:string/effect_param_color1" enableTargets="c1mode" />
+        <selector id="c1mode" style="radio" default="0" enabled="false">
+            <choice label="@am:string/effect_param_exclude" value="0" enableTargets="c1color,c1threshold,c1feather,c1luma" />
+            <choice label="@am:string/effect_param_include" value="1" enableTargets="c1color,c1threshold,c1feather,c1luma" />
+        </selector>
+        <color id="c1color" default="#FF00FF00" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="c1threshold" default="0.10" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_threshold" enabled="false"  />
+        <spinner id="c1feather" default="0.05" min="0.0" max="0.75" step="0.001" label="@am:string/effect_param_feather" enabled="false"  />
+        <spinner id="c1luma" default="0.25" min="0.01" max="2." step="0.001" label="@am:string/effect_param_luma_sensitivity" enabled="false"  />
+
+        <!-- COLOR 2 -->
+        <section text="@am:string/effect_param_color2" />
+        <switch id="c2active" default="true" label="@am:string/effect_param_color2" enableTargets="c2mode" />
+        <selector id="c2mode" style="radio" default="0" enabled="false">
+            <choice label="@am:string/effect_param_exclude" value="0" enableTargets="c2color,c2threshold,c2feather,c2luma" />
+            <choice label="@am:string/effect_param_include" value="1" enableTargets="c2color,c2threshold,c2feather,c2luma" />
+        </selector>
+        <color id="c2color" default="#FF00FF00" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="c2threshold" default="0.10" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_threshold" enabled="false"  />
+        <spinner id="c2feather" default="0.05" min="0.0" max="0.75" step="0.001" label="@am:string/effect_param_feather" enabled="false"  />
+        <spinner id="c2luma" default="0.25" min="0.01" max="2." step="0.001" label="@am:string/effect_param_luma_sensitivity" enabled="false"  />
+
+        <!-- COLOR 3 -->
+        <section text="@am:string/effect_param_color3" />
+        <switch id="c3active" default="false" label="@am:string/effect_param_color3" enableTargets="c3mode" />
+        <selector id="c3mode" style="radio" default="0" enabled="false">
+            <choice label="@am:string/effect_param_exclude" value="0" enableTargets="c3color,c3threshold,c3feather,c3luma" />
+            <choice label="@am:string/effect_param_include" value="1" enableTargets="c3color,c3threshold,c3feather,c3luma" />
+        </selector>
+        <color id="c3color" default="#FF00FF00" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="c3threshold" default="0.10" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_threshold" enabled="false"  />
+        <spinner id="c3feather" default="0.05" min="0.0" max="0.75" step="0.001" label="@am:string/effect_param_feather" enabled="false"  />
+        <spinner id="c3luma" default="0.25" min="0.01" max="2." step="0.001" label="@am:string/effect_param_luma_sensitivity" enabled="false"  />
+
+        <!-- COLOR 4 -->
+        <section text="@am:string/effect_param_color4" />
+        <switch id="c4active" default="false" label="@am:string/effect_param_color4" enableTargets="c4mode" />
+        <selector id="c4mode" style="radio" default="0" enabled="false">
+            <choice label="@am:string/effect_param_exclude" value="0" enableTargets="c4color,c4threshold,c4feather,c4luma" />
+            <choice label="@am:string/effect_param_include" value="1" enableTargets="c4color,c4threshold,c4feather,c4luma" />
+        </selector>
+        <color id="c4color" default="#FF00FF00" label="@am:string/effect_param_color" alpha="false" enabled="false" />
+        <spinner id="c4threshold" default="0.10" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_threshold" enabled="false"  />
+        <spinner id="c4feather" default="0.05" min="0.0" max="0.75" step="0.001" label="@am:string/effect_param_feather" enabled="false"  />
+        <spinner id="c4luma" default="0.25" min="0.01" max="2." step="0.001" label="@am:string/effect_param_luma_sensitivity" enabled="false"  />
+
+        <!-- TUNING -->
+        <section text="@am:string/effect_param_tune" />
+        <switch id="showMask" default="false" label="@am:string/effect_param_show_mask"  />
+
+    </params>
+
+    <passes>
+        <pass />
+    </passes>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            if( env.editMode=="eyedropper-drag" && env.selected ) {
+                el.shaderGroups = [1];
+            } else {
+                el.shaderGroups = [0];
+            }
+            return el;
+        }
+
+    ]]></script>
+
+    <shader type="fragment" group="1"><![CDATA[
+
+        void main() {
+            gl_FragColor = texture2DCv(inputImg.texture,acScreenNorm);
+        }
+
+    ]]></shader>
+
+    <shader type="fragment" group="0"><![CDATA[
+
+        highp mat3 rgb2yuv = mat3(
+             0.299,     0.587,    0.114,
+            -0.14713,  -0.28886,  0.436,
+             0.615,    -0.51499, -0.10001
+        );
+
+        highp mat3 yuv2rgb = mat3(
+            1.0,  0.0,      1.13983,
+            1.0, -0.39465, -0.58060,
+            1.0,  2.03211,  0.0
+        );
+        
+        vec4 calcKey(int mode, vec4 keyColor, float threshold, float feather, float lumaSensitivity, vec4 texColor, vec3 texYUV ) {
+            vec3 keyYUV = keyColor.rgb * rgb2yuv;
+            float dist = length((keyYUV - texYUV) * vec3(lumaSensitivity,1.0,1.0));
+            float a = 1. - smoothstep( threshold-max(feather,0.00001), threshold, dist );
+            if( mode==0 ) {
+                return vec4(a,0.,1.,0.);
+            } else if( mode==1 ) {
+                return vec4(0.,a,0.,1.);
+            } else {
+                return vec4(0.);
+            }
+        }
+
+        void main() {
+
+
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            //vec4 blurColor = texture2DCv(hblur.texture,acScreenNorm);
+            vec3 texYUV = texColor.rgb * rgb2yuv;
+            
+            vec4 key = vec4(0.);
+            key += calcKey(c1active ? c1mode : 2, c1color, c1threshold, c1feather, c1luma, texColor, texYUV);
+            key += calcKey(c2active ? c2mode : 2, c2color, c2threshold, c2feather, c2luma, texColor, texYUV);
+            key += calcKey(c3active ? c3mode : 2, c3color, c3threshold, c3feather, c3luma, texColor, texYUV);
+            key += calcKey(c4active ? c4mode : 2, c4color, c4threshold, c4feather, c4luma, texColor, texYUV);
+
+            float alpha = clamp(step(0.5,key.z) - clamp(key.x,0.,1.) + clamp(key.y,0.,1.), 0., 1.);
+
+            vec2 halfFragSize = vec2(1.0)/getTexSize(inputImg.size)/2.;
+            if(acLayerNorm.x <= halfFragSize.x || acLayerNorm.x >= 1.0 - halfFragSize.x || acLayerNorm.y <= halfFragSize.y || acLayerNorm.y >= 1.0 - halfFragSize.y) {
+                alpha = 0.0;
+            }
+            
+            //fringeBias *= (1. - blurColor.a);
+            //vec3 defringedYUV = (texColor.rgb+fringeBias.rgb)*rgb2yuv;
+            //defringedYUV.x = texYUV.x;
+            //texColor.rgb = defringedYUV * yuv2rgb;
+            
+            gl_FragColor = showMask ? vec4(alpha,0.,0.,1.)*texColor.a : vec4(texColor.rgb*alpha,alpha*texColor.a);
+        }
+
+    ]]></shader>
+
+</effect>

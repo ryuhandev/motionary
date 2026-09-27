@@ -1,0 +1,168 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.energybeam"
+    name="@am:string/effect_energy_beam_name"
+    desc="@am:string/effect_energy_beam_desc"
+    category="procedural"
+    tags="procedural,neon,raster,membersOnly"
+    thumb="thumb/lightning.webp"
+    experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="start" default="-200,-200" label="@am:string/effect_param_start" />
+        <point id="end" default="200,200" label="@am:string/effect_param_end" />
+        <color id="color1" default="#FFFF77FF" label="@am:string/effect_param_color" alpha="true" />
+        <color id="color2" default="#FFDDBBAA" label="@am:string/effect_param_glow_color" alpha="true" />
+        <spinner id="spread" default="40.0" min="0.01" max="50.0" step="0.01" label="@am:string/effect_param_spread" />
+        <spinner id="alpha" default="1.0" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_alpha" type="percent" />
+        <spinner id="glowAlpha" default=".5" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_glow" type="percent" />
+        <spinner id="haloAlpha" default=".3" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_halo_strength" type="percent" />
+        <spinner id="haloSpread" default="40.0" min="0.01" max="50.0" step="0.01" label="@am:string/effect_param_halo_spread" />
+        <color id="color3" default="#FFFF77FF" label="@am:string/effect_param_halo_color" alpha="true" />
+
+        <spinner id="clip" default="1.0" min="0.0" max="1.0" step="0.01" type="percent" label="@am:string/effect_param_length" />
+        <spinner id="progress" default="0.5" min="-0.5" max="1.5" step="0.01" label="@am:string/effect_param_progress" ticks="-1.5,0.,0.5,1.0,1.5" type="percent" />
+        <spinner id="blur" default="0" min="0" max="2" step="0.01" label="@am:string/effect_param_blur" />
+
+        <selector id="blendMode" style="dropdown" default="2" label="@am:string/effect_param_blendmode">
+            <choice label="@am:string/effect_param_normal" value="0" />
+            <choice label="@am:string/effect_param_multiply" value="1" />
+            <choice label="@am:string/effect_param_screen" value="2" />
+        </selector>
+        
+        <section text="@am:string/effect_param_flicker" />
+        <spinner id="fstr" default="0.02" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_strength" type="percent" />
+        <spinner id="freq" default="15" min="0.05" max="20.0" step="0.01" label="@am:string/effect_param_freq" />
+
+        <section text="@am:string/effect_param_variation" />
+        <spinner id="vstr" default="0.02" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_strength" type="percent" />
+        <spinner id="vfreq" default="30" min="0.05" max="120.0" step="0.01" label="@am:string/effect_param_freq" />
+        <spinner id="vphase" default="0" min="-999" max="999" step="0.1" label="@am:string/effect_param_phase" />
+        <spinner id="randness" default="0" min="0" max="1" step="0.01" label="@am:string/effect_param_randomness" type="percent" />
+        <spinner id="evolution" default="0" min="-999" max="999" step="0.01" label="@am:string/effect_param_evolution" />
+
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        // 2D Random
+        float random (vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))
+                         * 43758.5453123);
+        }
+
+        // 2D Noise based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            // Interpolation
+            vec2 u = smoothstep(0., 1., f);
+
+            // Mix 4 coorners percentages
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+
+        float sdSegment( in vec2 p, in vec2 a, in vec2 b )
+        {
+            vec2 pa = p-a, ba = b-a;
+            float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
+            return length( pa - ba*h );
+        }
+
+        vec4 colorForPhase( vec2 st, float phase, vec2 a, vec2 v ) {
+        
+            float low = 0.5 + phase - clip/2.0;
+            float high = low + clip;
+            vec2 aa = a + v*saturate(low);
+            vec2 bb = a + v*saturate(high);
+            
+            float dist = dot(st-a,v)/length(v);
+
+            float p = min(sdSegment(st,aa,bb),0.5);
+
+            p += saturate(0.-high);
+            p += saturate(low-1.);
+            
+            float variation = 1. + (sin(dist*vfreq*3.14159+vphase)*vstr);
+            
+            if( randness > 0.0 ) {
+                float v2 = 1. + (noise(vec2(dist*vfreq*2. + vphase, evolution*17.956))-0.5)*vstr*2.;
+                variation = mix(variation,v2,randness);
+            }
+            
+            float falloff = (max(0.0001,51.-spread));
+            float haloFalloff = (max(0.0001,51.-haloSpread));
+
+            float h = pow((1.-abs(pow(1.-p,haloFalloff)-0.5))*0.5,2.232)*2.5*haloAlpha;
+            float sf = sin(freq*acTime*3.14159);
+            
+            float ga = glowAlpha * (1. + sf*fstr);
+            float ca = 1. + sf*fstr*0.5;
+            float f2 = pow(falloff,1.5);
+
+            vec4 color = vec4(pow(vec3(pow(1.-clamp(p*variation,0.0001,0.5),f2)),1./color1.rgb)*ca + (pow(vec3(pow(1.-clamp(p,0.0001,0.5),f2/5.)),1./color2.rgb)*ga) + (h*color3.rgb), 1.);
+
+            color *= alpha;
+            
+            return clamp(color,0.0,1.0); 
+
+        }
+        
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st.y *= -1.;
+
+            vec2 a = start / 1000.;
+            vec2 b = end / 1000.;
+            vec2 v = b-a;
+            
+            float toffs = (progress-0.5)*2.;
+            
+            vec4 color;
+            if( blur <= 0. ) {
+                color = colorForPhase(st,toffs,a,v);
+            } else {
+                color = vec4(0.);
+                int steps = 20;
+                for( int i = 1; i<=steps; i++ ) {
+                    float d = float(i)*blur*0.01;
+                    color += saturate(colorForPhase(st,toffs+d,a,v));
+                    color += saturate(colorForPhase(st,toffs-d,a,v));
+                }
+                color /= float(steps)*2.;
+            }
+
+            vec4 result;
+            if( blendMode==0 ) {                // normal
+                color *= texColor.a;
+                result = color + (texColor*(1.0-color.a));
+            } else if( blendMode==1 ) {         // multiply
+                vec4 c = color + vec4(1.)*(1.-color.a);
+                result = vec4((texColor.rgb/texColor.a)*c.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {         // screen
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-color.rgb)),1.0) * texColor.a;
+            }
+
+            gl_FragColor = result;
+
+        }
+
+    ]]></shader>
+
+</effect>

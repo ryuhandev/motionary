@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.colorbalance" compat="acScreenNorm-y" name="@am:string/effect_color_balance_name" desc="@am:string/effect_color_balance_desc" category="color" tags="color" thumb="thumb/colorbalance.webp" experimental="false">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        
+        <section text="@am:string/effect_param_shadows" hintType="editFirst" />
+        <slider id="crLow" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_cyan_to_red" />
+        <slider id="mgLow" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_magenta_to_green" />
+        <slider id="ybLow" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_yellow_to_blue" />
+
+        <section text="@am:string/effect_param_midtones" />
+        <slider id="crMid" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_cyan_to_red" />
+        <slider id="mgMid" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_magenta_to_green" />
+        <slider id="ybMid" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_yellow_to_blue" />
+
+        <section text="@am:string/effect_param_highlights" />
+        <slider id="crHigh" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_cyan_to_red" />
+        <slider id="mgHigh" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_magenta_to_green" />
+        <slider id="ybHigh" default="0.0" min="-100.0" max="100.0" label="@am:string/effect_param_yellow_to_blue" />
+        
+        <section text="@am:string/fxcat_other" />
+        <switch id="fixLum" default="true" label="@am:string/effect_param_preserveluminance" />
+        
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+      
+        void main() {
+            highp mat3 rgb2yuv = mat3(
+                 0.299,     0.587,    0.114,
+                -0.14713,  -0.28886,  0.436,
+                 0.615,    -0.51499, -0.10001
+            );
+            highp mat3 yuv2rgb = mat3(
+                1.0,  0.0,      1.13983,
+                1.0, -0.39465, -0.58060,
+                1.0,  2.03211,  0.0
+            );
+            
+            vec4 baseColor = texture2DCv(inputImg.texture,acScreenNorm.st);
+            vec3 yuv = baseColor.rgb*rgb2yuv;
+            
+            float low = (1.0 - smoothstep(0.222, 0.444, yuv.x));
+            float midLow = smoothstep(0.222, 0.444, yuv.x)*step(yuv.x, 0.555);
+            float midHigh = (1.0-smoothstep(0.555, 0.777, yuv.x))*step(0.555, yuv.x) * step(yuv.x, 0.777);
+            float high = smoothstep(0.555, 0.777, yuv.x);
+            vec3 filter = vec3(crLow, mgLow, ybLow) * low + vec3(crMid, mgMid, ybMid)*(midLow+midHigh)+vec3(crHigh, mgHigh, ybHigh)*high;
+            filter = max(min(filter, 100.0), -100.0);
+            vec3 conv = (filter+vec3(100.0))/100.0;
+            vec3 converted = baseColor.rgb*conv;
+            vec3 convYuv = converted*rgb2yuv;
+            if(fixLum) convYuv.x = yuv.x;
+            vec4 outColor = vec4(convYuv*yuv2rgb, baseColor.a);
+            gl_FragColor = outColor;
+        }
+
+    ]]></shader>
+
+</effect>

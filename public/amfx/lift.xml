@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.lift" name="@am:string/effect_copybg_name" desc="@am:string/effect_copybg_desc" thumb="thumb/liftfx.webp" tags="compositing,utility,raster">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="comp" srcType="comp" />
+        <tip text="@am:string/effect_copybg_tip" />
+        <spinner id="fill" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_fill" type="percent" step="0.01" ticks="0.5" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            gl_FragColor = mix(texture2DCv(comp.texture,acScreenNorm)*texColor.a,texColor,fill);
+        }
+
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.tunnel" name="@am:string/effect_tunnel_name" desc="@am:string/effect_tunnel_desc" category="3d" tags="3d,lighting,raster" thumb="thumb/tunnel.webp" overdraw="true" max-overdraw="0.2">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <!--<point id="center" default="0,0" label="@am:string/effect_param_center" />-->
+        <spinner id="phase" default="0.0" min="0.0" max="1000.0" label="@am:string/effect_param_phase" step="0.01" ticks="1,2,3,4,5" />
+        <color id="fogColor" default="#FF000000" label="@am:string/effect_param_fogcolor" alpha="false" />
+        <spinner id="fog" default="1.0" min="0.0" max="2.0" label="@am:string/effect_param_fog" snap="1.0" ticks="1.0" />
+        <spinner id="depth" default="0.3" min="0.01" max="10.0" label="@am:string/effect_param_depth" step="0.001" ticks="0.3,0.5,1,2,3,4,5" />
+        <spinner id="twirl" default="0.0" min="-3600" max="3600" label="@am:string/effect_param_twirl" step="0.1" ticks="0" type="angle" />
+        <spinner id="wrap" default="2.0" min="1.0" max="8.0" label="@am:string/effect_param_wrap" step="0.01" ticks="0.5,1.0,1.5,2.0" />
+        <spinner id="crop" default=".995" min="0.01" max="2.0" label="@am:string/effect_param_crop" step="0.001" ticks="1.0" />
+        <switch id="mirror" default="true" label="@am:string/effect_param_mirror" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+
+            vec2 st = acLayerNorm;
+            //st.x *= acLayerSize.x/acLayerSize.y;
+            st -= vec2(0.5,0.5); //+(center/1200.0*vec2(1.,-1.));
+            float tr = twirl * 0.0174533;
+            float angle = atan(st.x, st.y);
+            float radius = length(st);
+            angle += tr*radius;
+            vec2 uv = vec2( depth/radius + phase, angle/(3.1415927*2./wrap));
+            if( mirror ) {
+                uv = abs(mod(uv,2.0)-1.0);
+            } else {
+                uv = mod(uv,1.0);
+            }
+            uv -= 0.5;
+            uv *= crop;
+            uv += 0.5;
+            vec4 texColor = texture2DCv(inputImg.texture,(vec4(uv,0.,1.)*acLayerToScreen).xy);
+
+            gl_FragColor = radius > 0.5 ? vec4(0.) : mix(texColor,fogColor,clamp((1.-radius*2.)*fog,0.,1.));
+        }
+
+    ]]></shader>
+
+</effect>

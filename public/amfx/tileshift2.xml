@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.tileshift2" name="@am:string/effect_tileshift_name" desc="@am:string/effect_tileshift_desc" category="distort" tags="distort,geometric,raster" thumb="thumb/tileshift.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="strength" default="0.1" min="0.0" max="1.0" step="0.001" label="@am:string/effect_param_strength" />
+        <point id="position" label="@am:string/effect_param_offset" />
+        <spinner id="amount" default="10.0" min="0.5" max="200.0" label="@am:string/effect_param_count" step="0.1" ticks="10" />
+        <point id="stretch" default="1.0, 1.0" min="0.01,0.01" max="10, 10" label="@am:string/effect_param_stretch" step="0.01" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" ticks="0,45,90,135,180,225,270,315,360" step="0.5" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+        <switch id="screenSpace" default="false" label="@am:string/effect_param_screenspace" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        #define l2s(v) ((vec4(v,0.,1.)*acLayerToScreen).xy)
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st;
+            if(screenSpace) {
+                st = acScreenNorm;
+                st.y = 1.0  - st.y;
+                st -= 0.5;
+                st.x *= acScreenSize.x/acScreenSize.y;
+                st -= (position/1200.0);
+            } else {
+                st = ((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/length(acLayerSize)-(position/1200.0);
+            }
+            float a = angle * 0.0174533;
+            st *= mat2(
+                sin(a), -cos(a),
+                cos(a), sin(a)
+            );
+            float px = floor(st.x*amount/stretch.y);
+            float py = floor(st.y*amount/stretch.x);
+            float dx = rand(vec2(px,py+3937.7249*seed));
+            float dy = rand(vec2(px+328.7319+432.7249*seed,py-971.382));
+            vec2 dv = (vec2(dx,dy) - 0.5)*2.0;
+            vec2 sampCoord = acScreenNorm+dv*strength;
+            sampCoord = abs(mod(sampCoord-1.0,2.0)-1.0);
+            vec4 sampColor = texture2DCv(inputImg.texture,sampCoord);
+            gl_FragColor = sampColor * texColor.a;
+        }
+
+    ]]></shader>
+
+</effect>
+

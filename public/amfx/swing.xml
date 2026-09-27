@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.swing" name="@am:string/effect_swing_name" desc="@am:string/effect_swing_desc" auto-transform="true" category="transform" tags="transform,auto,shake,propAdjust" thumb="thumb/swing.webp" deprecated="true">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Swing</string>-->
+            <!--<string name="desc">Rotates a layer back and forth, generating a rocking or swinging motion. For a realistic swinging motion, move the anchor point to the top edge of the layer before applying this effect.</string>-->
+            <!--<string name="freq">Frequency</string>-->
+            <!--<string name="a1">Angle 1</string>-->
+            <!--<string name="a2">Angle 2</string>-->
+            <!--<string name="wave">Wave</string>-->
+            <!--<string name="sine">Sine</string>-->
+            <!--<string name="triangle">Triangle</string>-->
+            <!--<string name="phase">Phase</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <spinner id="freq" default="2.0" min="0.1" max="16.0" step="0.01" ticks="1,2,4,8" label="@am:string/effect_param_freq" />
+        <spinner id="a1" default="-30" min="-180.0" max="180.0" step="0.1" label="@am:string/effect_param_a1" type="angle" snap="-135,-90,-45,0,45,90,135" ticks="-180,-135,-90,-45,0,45,90,135,180" originValue="0" />
+        <spinner id="a2" default="30" min="-180.0" max="180.0" step="0.1" label="@am:string/effect_param_a2" type="angle" snap="-135,-90,-45,0,45,90,135" ticks="-180,-135,-90,-45,0,45,90,135,180" originValue="0" />
+        <spinner id="phase" default="0" min="0" max="2" step="0.01" ticks="1" label="@am:string/effect_param_startphase" />
+        <selector id="type" default="0" style="radio" label="@am:string/effect_param_wave" >
+            <choice label="@am:string/effect_param_sine" value="0" />
+            <choice label="@am:string/effect_param_triangle" value="1" />
+        </selector>
+    </params>
+
+    <script lang="js"><![CDATA[
+
+        function animate(env,el,p) {
+            let t = env.time;
+            let m
+            if( p.type == 0 ) {
+                m = Math.sin(((t * env.duration * p.freq)+p.phase) * 3.14159)
+            } else {
+                m = AM.triangle(((t * env.duration * p.freq)+p.phase) / 2.0)
+            }
+            el.transform.angle += ((p.a2 - p.a1) * ((m+1.0)/2.0) ) + p.a1;
+            return el;
+        }
+
+    ]]></script>
+
+</effect>

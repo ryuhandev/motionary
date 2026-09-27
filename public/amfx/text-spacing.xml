@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.textspacing" name="@am:string/effect_textspacing_name" desc="@am:string/effect_textspacing_desc" affinity="text!" type="text" category="text" tags="text,membersOnly" experimental="false" thumb="thumb/textspacing.webp">
+
+    <params>
+
+        <spinner id="letterspacing" default="0.0" min="-10.0" max="10.0" type="percent" step="0.01" label="@am:string/effect_param_letterspace" ticks="-0.5,-1.0,-5.0,0.0,0.5,1.0,5.0" />
+        <spinner id="linespacing" default="1.0" min="0.0" max="9.999" type="percent" step="0.001" label="@am:string/effect_param_linespace" ticks="1.0,1.5,2.0,2.5" />
+
+    </params>
+
+</effect>

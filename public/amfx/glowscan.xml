@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.glowscan" name="@am:string/effect_glowscan_name" desc="@am:string/effect_glowscan_desc" category="drawing" tags="edge,drawing,neon,raster,membersOnly" thumb="thumb/glowscan.webp" >
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="hblur" srcType="buffer" />
+        <spinner id="threshold" default="0.5" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_threshold" />
+        <spinner id="radius" default="0.1" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_radius" />
+        <spinner id="power" default="2.0" min="0.0" max="4.0" step="0.01" label="@am:string/effect_param_feather" />
+        <spinner id="strength" default="0.05" min="0.0" max="2.0" step="0.01" label="@am:string/effect_param_smoothing" />
+        <color id="fillColor" default="#FF0088FF" label="@am:string/effect_param_color" alpha="false" />
+        <slider id="blend" default="0.00" min="0.0" max="1" label="@am:string/effect_param_blend" type="percent" />
+        <spinner id="fill" default="1.00" min="0.0" max="1" label="@am:string/effect_param_fill" type="percent" />
+        <spinner id="alpha" default="1.00" min="0.0" max="1" label="@am:string/effect_param_alpha" type="percent" />
+    </params>
+
+    <passes>
+        <pass target="hblur" effect="com.alightcreative.effects.gaussianblur"/>
+        <pass />
+    </passes>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+
+        void main() {
+            if( acPass==0 ) {
+
+                discard;
+            } else {
+                vec4 baseColor =  texture2DCv(hblur.texture, acScreenNorm.st);
+                vec4 mainColor = texture2DCv(inputImg.texture,acScreenNorm.st) * fill;
+                float luma = dot(baseColor.rgb, luminanceWeighting);
+                float adjThreshold = threshold * (1.0 + radius) - radius;
+                if(luma >= adjThreshold && luma <= adjThreshold + radius)
+                {
+                    float halfRadius = radius*0.5;
+                    float linearPos = abs((luma - adjThreshold - halfRadius)/halfRadius);
+                    vec4 glow = pow(mix(baseColor, fillColor*luma, blend*0.99), vec4(power) * pow(linearPos, 2.0));
+                    mainColor = mix(mainColor, baseColor + glow, alpha);
+                }
+                gl_FragColor = mainColor;
+            }
+        }
+
+    ]]></shader>
+
+</effect>

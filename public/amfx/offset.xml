@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.offset" name="@am:string/effect_offset_name" desc="@am:string/effect_offset_desc" category="transform" tags="trasform,raster" thumb="thumb/offset.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <!--<spinner id="scale" default="1" min="0.01" max="8.0" step="0.01" label="@am:string/effect_param_scale" ticks="0" />-->
+        <point id="offset" label="@am:string/effect_param_offset" />
+        <spinner id="feather" default="0.0" min="0.0" max="1.0" label="@am:string/effect_param_feather" step="0.001" />
+        <switch id="mask" label="@am:string/effect_param_masktolayer" default="false" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            //vec2 pixel = vec2(1.,1.)/getTexSize(inputImg.size);
+            //vec2 layerPixel = vec2(1.,1.)/acLayerSize;
+            vec2 sampleCoord = mod(acLayerNorm + (offset * vec2(-1.,1.))/1000.0, 1.);
+            vec2 featherDist = (0.5-abs(mod(offset/1000.0,1.)-0.5)) * 2.0 * feather;
+            vec2 featherAmount = feather<0.0001 ? vec2(1.,1.) : smoothstep(vec2(0.,0.),featherDist,min(sampleCoord, vec2(1.,1.)-sampleCoord));
+            sampleCoord = (vec4(sampleCoord,0.0,1.0) * acLayerToScreen).xy;
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float maskFactor;
+            if( mask ) {
+                maskFactor = texColor.a;
+            } else {
+                vec2 s = step(vec2(0.,0.), acLayerNorm) - step(vec2(1.,1.), acLayerNorm);
+                maskFactor = s.x * s.y;
+            }
+            vec4 overColor = texColor * (1.-(featherAmount.x * featherAmount.y));
+            //sampleCoord += pixel/2.;
+            gl_FragColor = overColor + (texture2DCv(inputImg.texture,sampleCoord) * maskFactor * (1. - overColor.a));
+        }
+
+    ]]></shader>
+
+</effect>

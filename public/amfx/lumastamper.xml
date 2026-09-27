@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect
+    id="com.alightcreative.effects.lumastamper"
+    name="@am:string/effect_luma_stamper_name"
+    desc="@am:string/effect_luma_stamper_desc"
+    category="matte"
+    tags="raster,compositing,mask,matte,key"
+    thumb="thumb/glowscan.webp"
+    >
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <color id="color" default="#FFFF5566" label="@am:string/effect_param_color" alpha="false" />
+        <spinner id="clipLow" default="0.00" min="0.0" max="1" label="@am:string/effect_param_clip_low" />
+        <spinner id="clipHigh" default="0.00" min="0.0" max="1" label="@am:string/effect_param_clip_high" />
+        <spinner id="gamma" default="1.0" min="0.01" max="9.99" label="@am:string/effect_param_gamma" logscale="2.351" snap="1.0" ticks="0.5,1.0,2.0" step="0.005" />
+        <switch id="invert" default="false" label="@am:string/effect_param_invert" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        void main() {
+        
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            float luminance = dot(texColor.rgb/max(0.000001,texColor.a), luminanceWeighting);
+            float p = saturate((luminance-clipLow)/(max(1.-clipHigh,clipLow+0.0001)-clipLow));
+            p = pow(p,1.0/gamma);
+            if(invert) p = 1.-p;
+            p *= texColor.a;
+            gl_FragColor = color * p;
+        
+        }
+
+    ]]></shader>
+
+</effect>
+

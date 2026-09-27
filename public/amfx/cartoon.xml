@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.cartoon" name="@am:string/effect_cartoon_name" desc="@am:string/effect_cartoon_desc" category="color" thumb="thumb/cartoon.jpg" deprecated="false" experimental="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <slider id="strength" default="20.0" min="1.0" max="100.0" label="@am:string/effect_param_strength" />
+        <color id="outline_color" default="#FFFF0000" label="@am:string/effect_param_color" alpha="false" />
+    </params>
+
+    <shader type="fragment"><![CDATA[
+
+        #define OUTLINE_BIAS -.5
+        #define OUTLINE_POWER 1.
+        #define PRECISION 6.
+
+        void main()
+        {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec4 p = pow(texColor, vec4(2.2));
+            vec4 s = pow(texture2DCv(inputImg.texture, acScreenNorm + vec2(0.5, 0.5) / acScreenSize), vec4(2.2));
+            float l = clamp(pow(length(p-s),OUTLINE_POWER)*strength+OUTLINE_BIAS,0.,1.);
+            p = floor(pow(p,vec4(1./2.2))*(PRECISION+.999))/PRECISION;
+            vec4 outColor = mix(p,outline_color,l);
+            gl_FragColor = vec4(outColor.rgb,texColor.a);
+        }
+    ]]></shader>
+
+</effect>

@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.checkerdissolve" name="@am:string/effect_blockdissolve_name" desc="@am:string/effect_checkerdissolve_desc" tags="block,opacity,visibility,random,membersOnly,raster" category="opacity" thumb="thumb/checkerdissolve.webp" deprecated="true">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="amount" default="0.75" min="0.0" max="1.0" step="0.005" label="@am:string/effect_param_strength" />
+        <spinner id="size" default="10" min="1" max="500" step="1" label="@am:string/effect_param_size" />
+        <spinner id="stretch" default="0.0" min="-2000" max="2000" label="@am:string/effect_param_stretch" step="0.1" ticks="0" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+        <spinner id="fade" default="0" min="0" max="0.5" step="0.01" label="@am:string/effect_param_fade" />
+        <point id="offset" label="@am:string/effect_param_offset" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = floor((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/acLayerSize;
+            float t = seed*3197.3791;
+            t = mod(t,2.8)+2.7;
+            float tileSize = min(acLayerSize.x, acLayerSize.y)/size;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st -= offset/1000.0;
+            st *= tileSize;
+            vec2 scaleVec;
+            if( stretch < 0.0 ) {
+                st.x /= 1.0-stretch;
+            } else {
+                st.y /= 1.0+stretch;
+            }
+            st = floor(st);
+
+            // st.x /= stretch;
+            // st /= tileSize;
+            // st += offset/1000.0;
+            // st.x /= acLayerSize.x/acLayerSize.y;
+
+            float r = rand( st*t );
+            //r = step(amount,r);
+            //float scale = 1.0/(1.0+fade);
+            //r = smoothstep(amount*scale, (amount+fade)*scale, r);
+            float adjFade = max(fade,0.00001);
+            float adjAmount = amount;
+            adjAmount -= 0.5;
+            adjAmount *= 1.0+(adjFade*2.0);
+            adjAmount += 0.5;
+            r = smoothstep(adjAmount-adjFade, adjAmount+adjFade, r);
+            gl_FragColor = texColor*r;
+        }
+
+    ]]></shader>
+
+</effect>

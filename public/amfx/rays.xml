@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.rays" name="@am:string/effect_rays_name" desc="@am:string/effect_rays_desc" category="color" tags="color,raster" thumb="thumb/rays.webp">
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <point id="centerPoint" label="@am:string/effect_param_center" />
+        <spinner id="strength" default="0.15" min="0.0" max="4.0" step="0.01" label="@am:string/effect_param_length" />
+        <spinner id="intensity" default="1.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_intensity" />
+        <spinner id="threshold" default="0.6" min="0.0" max="1.0" step="0.01" label="@am:string/effect_param_threshold" />
+        <color id="thresholdColor" default="#FF000000" label="@am:string/effect_param_threshold_add" alpha="false" />
+        <color id="fillColor" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="false" />
+        <slider id="blend" default="0.00" min="0.0" max="1" label="@am:string/effect_param_blend" type="percent" />
+        <slider id="quality" default="150.0" min="10.0" max="800.0" step="1" label="@am:string/effect_param_quality" ticks="150" />
+
+<!--        <spinner id="offset" default="1" min="-1" max="1" step="0.01" label="@am:string/effect_param_offset" type="relative-percent" />-->
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        const vec3 luminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+
+        void main() {
+            vec2 texelSize = 1.0 / getTexSize(inputImg.size);
+            vec2 center = vec2(0.5 + centerPoint.x/500., 0.5 - centerPoint.y/500.);
+            vec2 v = acScreenNorm.st - (vec4(center,0.0,1.0) * acLayerToScreen).xy;
+            float speed = length(strength / 2.0 / texelSize);
+            speed *= length( acLayerNorm.st - center );
+            //int nSamples = int(clamp(speed, 1.01, 200.01));
+            int nSamples = int(quality);
+            vec4 baseColor = texture2DCv(inputImg.texture,acScreenNorm.st);
+            vec2 vnorm = normalize(v)*texelSize*speed;
+            vec2 offsetScale = vec2(1., 1.);
+            if( acScreenSize.y > acScreenSize.x ) {
+                offsetScale.x *= acScreenSize.x / acScreenSize.y;
+            } else {
+                offsetScale.y *= acScreenSize.y / acScreenSize.x;
+            }
+
+            float actualSamples = 1.0;
+            vec4 outColor = vec4(0.);
+            for(int i=1; i<nSamples; i++ ) {
+                float p = float(i) / float(nSamples - 1);
+                vec2 offs = vnorm * p;
+                offs *= offsetScale;
+
+                vec4 texColor = texture2DCv(inputImg.texture, acScreenNorm.st-offs);
+
+                float luminance = dot(texColor.rgb - thresholdColor.rgb, luminanceWeighting);
+
+                outColor += luminance > threshold ? mix(texColor,fillColor,blend)*(1.-p) : vec4(0.0);
+                actualSamples += luminance > threshold ? 1.0 : 0.0;
+            }
+            gl_FragColor = baseColor + outColor * intensity / float(nSamples);
+        }
+
+    ]]></shader>
+
+</effect>

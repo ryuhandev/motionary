@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.outlinebad" name="@string/name" desc="@string/desc" deprecated="true">
+
+    <strings>
+        <locale lang="en">
+            <string name="name">Outline Bad</string>
+            <string name="desc">Outline Bad</string>
+            <string name="radius">Radius</string>
+        </locale>
+    </strings>
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <texture id="hdist" srcType="buffer" />
+        <slider id="radius" default="5.0" min="0.0" max="100.0" label="@string/radius" />
+    </params>
+
+    <passes>
+        <pass target="hdist" />
+        <pass />
+    </passes>
+
+    <shader type="fragment"><![CDATA[
+
+        void main() {
+            int from = -max(1,int(radius));
+            int to = max(1,int(radius));
+            float nearest = radius * 2.0;
+            vec4 outColor;
+            if( acPass==0 ) {
+                for(int i=from; i<to; i++ ) {
+                    vec4 inColor = texture2DCv(inputImg.texture,vec2(acScreenNorm.s + float(i)*(1.0/getTexSize(inputImg.size).x),acScreenNorm.t));
+                    float dist = inColor.a > 0.0 ? abs(float(i)) : radius*2.0;
+                    nearest = min(nearest,dist);
+                }
+                outColor = vec4(nearest <= radius ? 1.0 : 0.0);
+            } else {
+                for(int i=from; i<to; i++ ) {
+                    //outColor += texture2DCv(hblur.texture,vec2(acScreenNorm.s,acScreenNorm.t + float(i)*(1.0/720.0)));
+                    vec4 inColor = texture2DCv(hdist.texture,vec2(acScreenNorm.s,acScreenNorm.t + float(i)*(1.0/getTexSize(inputImg.size).y)));
+                    float dist = inColor.a > 0.0 ? abs(float(i)) : radius*2.0;
+                    nearest = min(nearest,dist);
+                }
+                outColor = nearest <= radius ? vec4(1.0,0.0,0.0,1.0) : vec4(0.0);
+            }
+            gl_FragColor = outColor;
+        }
+
+    ]]></shader>
+
+</effect>

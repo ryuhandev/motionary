@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.texttransform" name="@am:string/effect_texttransform_name" desc="@am:string/effect_texttransform_desc" affinity="text!" type="text" category="text" tags="text,kinetic,membersOnly" thumb="thumb/texttransform.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Drawing Progress</string>-->
+            <!--<string name="desc">Drawing Progress</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+
+        <section text="@am:string/effect_param_range" />
+        <spinner id="start" default="0.0" min="0.0" max="1.0" type="percent" step="0.001" label="@am:string/effect_param_start" ticks="0.0,0.5,1.0" />
+        <spinner id="end" default="1.0" min="0.0" max="1.0"  type="percent" step="0.001"  label="@am:string/effect_param_end" ticks="0.0,0.5,1.0" />
+        <spinner id="phase" default="0.0" min="-1.0" max="2.0" type="percent"  step="0.001" label="@am:string/effect_param_phase" ticks="-1.0,0.0,1.0" />
+
+        <section text="@am:string/effect_section_transform" />
+        <selector id="component" default="1" style="dropdown" label="@am:string/effect_param_component" >
+            <choice label="@am:string/effect_param_component_contour" value="0" />
+            <choice label="@am:string/effect_param_component_letter" value="1" />
+            <choice label="@am:string/effect_param_component_word" value="2" />
+            <choice label="@am:string/effect_param_component_line" value="3" />
+        </selector>
+        <selector id="anchor" default="0" style="radio" label="@am:string/effect_param_anchor" >
+            <choice label="@am:string/effect_param_layer" value="0" />
+            <choice label="@am:string/effect_param_component" value="1" />
+        </selector>
+        <point id="offset" default="0.0,0.0" label="@am:string/effect_param_offset" />
+        <spinner id="angle" default="0.0" min="-1800.0" max="1800.0" label="@am:string/effect_param_angle" ticks="-90,-45,0,45,90" snap="-90,-45,0,45,90" type="angle" step="0.1" />
+        <spinner id="scale" default="0.0" min="-1.0" max="10.0" label="@am:string/effect_param_scale" ticks="0.0" snap="-90,-45,0,45,90" step="0.01" />
+        <spinner id="stretch" default="0.0" min="-1.0" max="10.0" label="@am:string/effect_param_stretch" ticks="0.0" snap="-90,-45,0,45,90" step="0.01" />
+        <spinner id="alpha" default="0" min="-1" max="1" step="0.001" label="@am:string/effect_param_alpha" ticks="0.0" />
+
+        <section text="@am:string/effect_section_visualattr" />
+        <switch id="useFillColor" default="false" label="@am:string/effect_param_override_fill_color" />
+        <color id="fillColor" default="#FF00FF00" label="@am:string/effect_param_fillColor" alpha="false" />
+
+        <section text="@am:string/effect_section_interpease" />
+        <slider id="easeIn" default="0" min="-1" max="1" label="@am:string/effect_param_ease_in" step="0.01" type="percent" snap="0" ticks="0" />
+        <slider id="easeOut" default="0" min="-1" max="1" label="@am:string/effect_param_ease_out" step="0.01" type="percent" snap="0" ticks="0"  />
+        <spinner id="overlap" default="0" min="0" max="10" label="@am:string/effect_param_overlap" step="0.01" type="percent" />
+        <selector id="shape" default="0" style="radio" label="@am:string/effect_param_shape" >
+            <choice label="@am:string/effect_param_square" value="0" />
+            <choice label="@am:string/effect_param_smooth" value="1" />
+            <choice label="@am:string/effect_param_triangle" value="2" />
+        </selector>
+
+        <section text="@am:string/effect_param_random_order" />
+        <switch id="randomOrder" default="false" label="@am:string/effect_param_random_order" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+
+    </params>
+
+</effect>

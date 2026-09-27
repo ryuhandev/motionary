@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.dissolve" name="@am:string/effect_dissolve_name" desc="@am:string/effect_dissolve_desc" category="opacity" tags="opacity,visibility,random,noise,glitch,raster" thumb="thumb/dissolve.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Noise</string>-->
+            <!--<string name="desc">Random color or monochrome noise that combines with existing layer content. Can change with every frame or be frozen.</string>-->
+            <!--<string name="amount">Amount</string>-->
+            <!--<string name="mono">Monochrome</string>-->
+            <!--<string name="clamp">Clamp</string>-->
+            <!--<string name="overshoot">Overshoot</string>-->
+            <!--<string name="extremes">Extremes</string>-->
+            <!--<string name="freeze">Freeze</string>-->
+            <!--<string name="position">Position</string>-->
+            <!--&lt;!&ndash;<string name="offsetx">X Offset</string>&ndash;&gt;-->
+            <!--&lt;!&ndash;<string name="offsety">Y Offset</string>&ndash;&gt;-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="amount" default="0.75" min="0.0" max="1.0" step="0.005" label="@am:string/effect_param_strength" />
+        <spinner id="seed" default="0.0" min="0.0" max="5.0" step="0.01" label="@am:string/effect_param_seed" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = floor((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/acLayerSize;
+            //float c = overshoot; //clampRange? 1.0 : 2.0;
+            float t = seed*3197.3791;
+            t = mod(t,2.8)+2.7;
+            float r = rand( st*t );
+            r = step(amount,r);
+            gl_FragColor = texColor*r;
+        }
+
+    ]]></shader>
+
+</effect>

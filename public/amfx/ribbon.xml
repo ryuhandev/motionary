@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<effect id="com.alightcreative.effects.ribbon" name="@am:string/effect_ribbon_name" desc="@am:string/effect_ribbon_desc" category="procedural" tags="procedural,random,raster,membersOnly" thumb="thumb/ribbon.webp">
+
+    <!--<strings>-->
+        <!--<locale lang="en">-->
+            <!--<string name="name">Stripes</string>-->
+            <!--<string name="desc">Stripes that overlay layer content. Color, spacing, thickness, and angle can be adjusted.</string>-->
+            <!--<string name="amount">Amount</string>-->
+            <!--<string name="width">Width</string>-->
+            <!--<string name="angle">Angle</string>-->
+            <!--<string name="color">Color</string>-->
+            <!--<string name="punchout">Punch Out</string>-->
+            <!--<string name="smoothing">Smoothing</string>-->
+            <!--<string name="phase">Phase</string>-->
+        <!--</locale>-->
+    <!--</strings>-->
+
+    <params>
+        <texture id="inputImg" srcType="content" />
+        <spinner id="amplitude" default="0.2" min="0" max="1.0" label="@am:string/effect_param_magnitude" step="0.001" />
+        <spinner id="frequency" default="3" min="0.1" max="20.0" label="@am:string/effect_param_freq" step="0.01" />
+        <spinner id="width" default="0.2" min="0.0" max="5.0" label="@am:string/effect_param_width" step="0.001" ticks="0.5" />
+        <spinner id="phase" default="0.0" min="0.0" max="1000.0" label="@am:string/effect_param_phase" step="0.01" ticks="1,2,3,4,5,6,7,8,9,10"/>
+        <spinner id="offset" default="0.0" min="-1.0" max="1.0" label="@am:string/effect_param_offset" step="0.001" />
+        <color id="color" default="#FF2D1EF6" label="@am:string/effect_param_color" alpha="false" />
+        <switch id="punchout" default="false" label="@am:string/effect_param_punchout" />
+        <spinner id="smoothing" default="0.01" min="0.0" max="1" label="@am:string/effect_param_smoothing" />
+        <color id="tintColor" default="#FF88CCFF" label="@am:string/effect_param_tint" alpha="false" />
+        <slider id="tint" default="0.00" min="0.0" max="1" label="@am:string/effect_param_tintColor" />
+        <spinner id="angle" default="0.0" min="0.0" max="3600.0" label="@am:string/effect_param_angle" type="angle" step="0.5" ticks="0,45,90,135,180,225,270,315,360" snap="45,90,135" />
+    </params>
+
+    <shader type="fragment" precision="high"><![CDATA[
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg.texture,acScreenNorm);
+            vec2 st = acLayerNorm.st;
+
+            float a = angle * 0.0174533;
+            st -= 0.5;
+            st *= mat2(
+                cos(a), -sin(a),
+                sin(a), cos(a)
+            );
+            st += 0.5;
+
+            float x = st.x;
+
+            float y;
+            float t;
+
+            y = sin(x * frequency);
+            t = 0.01*(-phase*130.0);
+            y += sin(x*frequency*2.1 + t)*4.5;
+            y += sin(x*frequency*1.72 + t*1.121)*4.0;
+            y += sin(x*frequency*2.221 + t*0.437)*5.0;
+            y += sin(x*frequency*3.1122+ t*4.269)*2.5;
+            y *= amplitude*0.03;
+            y += 0.5 + offset;
+
+            float y1 = y;
+
+            y = sin(x * frequency);
+            t = 0.01*(-phase*130.0)+width;
+            y += sin(x*frequency*2.1 + t)*4.5;
+            y += sin(x*frequency*1.72 + t*1.121)*4.0;
+            y += sin(x*frequency*2.221 + t*0.437)*5.0;
+            y += sin(x*frequency*3.1122+ t*4.269)*2.5;
+            y *= amplitude*0.03;
+            y += 0.5 + offset;
+
+            float y2 = y;
+
+            //float p = = st.y > min(y1,y2) && st.y < max(y1,y2) ? color : vec4(0.);
+
+            float lowy = min(y1,y2);
+            float highy = max(y1,y2);
+
+            //float b = smoothing*(highy-lowy)/2.;
+            float b = smoothing/20.;
+
+            //float p = st.y > lowy && st.y < highy ? 1.0 : 0.0;
+
+            float p = min(smoothstep(lowy-b/2.,lowy+b/2.,st.y), 1.-smoothstep(highy-b/2.,highy+b/2.,st.y));
+
+            vec4 mixedColor = mix(color,tintColor,smoothstep(y1,y2,st.y)*tint);
+
+            vec4 c = mixedColor * p;
+            if( punchout ) {
+                gl_FragColor = texColor * (1.0-p);
+            } else {
+                c *= texColor.a;
+                gl_FragColor = c + (texColor*(1.0-c.a));
+            }
+        }
+
+    ]]></shader>
+
+</effect>
