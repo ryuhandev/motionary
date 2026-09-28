@@ -281,3 +281,21 @@ button:focus-visible{outline:2px solid var(--accent)}
 .mt-val{flex:1;min-width:0;background:rgba(0,224,138,.12);border:1px solid rgba(0,224,138,.55);color:var(--accent);border-radius:10px;padding:10px 12px;font-size:16px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
 .mt-add{width:44px;height:44px;border-radius:12px;background:#2E3450;border:1px solid var(--line);color:#C9CDDD;font-size:24px;font-weight:700;cursor:pointer;flex:none}
 .mt-add.has{border-color:var(--accent);color:var(--accent);background:rgba(0,224,138,.10)}
+
+/* ---------- Drawing workspace (viewport murni, bukan timeline) ---------- */
+.dr-tools{display:flex;gap:6px;padding:8px 10px;overflow-x:auto;background:#141828;border-bottom:1px solid var(--line)}
+.dr-tools button{flex:0 0 auto;background:#2E3450;border:none;border-radius:8px;color:#fff;padding:9px 12px;font-size:13px;cursor:pointer}
+.dr-tools button.active{background:var(--accent);color:#0B0E1A}
+.dr-tools input[type=color]{width:40px;height:34px;border:none;border-radius:8px;background:#2E3450;padding:2px}
+.dr-wrap{position:relative;flex:1;overflow:hidden;background:#0B0E1A;touch-action:none;min-height:200px}
+#drawCanvas{position:absolute;left:0;top:0;touch-action:none;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+.dr-layers{position:absolute;right:8px;top:8px;width:190px;max-height:70%;overflow:auto;background:rgba(20,24,40,.96);border:1px solid var(--line);border-radius:10px;padding:8px;z-index:5}
+.dr-layer{display:flex;align-items:center;gap:6px;padding:7px 6px;border-radius:8px;color:#E8EAF2;font-size:13px;cursor:pointer}
+.dr-layer.active{background:#2E3450}
+.dr-layer button{background:none;border:none;color:#C9CDDD;font-size:15px;cursor:pointer;padding:2px 5px}
+.dr-transport{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#141828;border-top:1px solid var(--line)}
+.dr-prog{flex:1;height:8px;background:#2E3450;border-radius:6px;overflow:hidden;cursor:pointer}
+.dr-prog-fill{height:100%;width:0%;background:var(--accent)}
+#drStatus{padding:2px 12px 8px;min-height:18px}
+.dr-viewbtns{display:flex;gap:6px;padding:6px 10px;background:#141828}
+.dr-viewbtns button{flex:1;background:#2E3450;border:none;border-radius:8px;color:#fff;padding:8px 4px;font-size:12px}

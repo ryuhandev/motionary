@@ -121,20 +121,22 @@
 <div class="cp-foot"><button id="cpCreate" class="btn-text">BUAT PROYEK</button></div>
 </div>
 <div id="cpDrawWrap" hidden>
-<div class="cp-label">Rasio kertas (ibis-style)</div>
-<div class="aspect-row" id="drawRatioRow">
-<button data-dr="1:1">1:1</button>
-<button data-dr="4:3">4:3</button>
-<button data-dr="3:4">3:4</button>
-<button data-dr="16:9">16:9</button>
-<button data-dr="9:16" class="tall active">9:16</button>
-<button data-dr="4:5">4:5</button>
-<button data-dr="A4" class="tall">A4</button>
-<button data-dr="A4-L">A4</button>
+<div class="cp-label">Preset kertas</div>
+<div class="aspect-row" id="drawPresetRow">
+<button data-dp="square">Square</button>
+<button data-dp="portrait" class="tall active">Portrait</button>
+<button data-dp="landscape">Landscape</button>
+<button data-dp="A5" class="tall">A5</button>
+<button data-dp="A4" class="tall">A4</button>
+<button data-dp="A3" class="tall">A3</button>
+<button data-dp="custom">Custom</button>
 </div>
-<div class="cp-row"><div class="cp-label">Resolusi kertas<div class="cp-sub" id="drResSub">Sisi panjang: 1080px</div></div>
-<div class="cp-res" id="drResRow"><button class="cp-select" data-dres="720">720</button><button class="cp-select" data-dres="1080">1080</button><button class="cp-select" data-dres="1440">1440</button></div></div>
-<div class="cp-row"><div class="cp-label">Warna kertas</div><button class="cp-select" id="drBg"><span class="dot" style="background:#ffffff"></span> Putih</button></div>
+<div class="cp-row"><div class="cp-label">DPI (A-series)<div class="cp-sub" id="drDpiSub">300 dpi</div></div>
+<div class="cp-res" id="drDpiRow"><button class="cp-select" data-ddpi="72">72</button><button class="cp-select" data-ddpi="150">150</button><button class="cp-select" data-ddpi="300">300</button></div></div>
+<div class="cp-row"><div class="cp-label">Orientasi</div><button class="cp-select" id="drOrient">Portrait</button></div>
+<div class="cp-row"><div class="cp-label">Ukuran canvas<div class="cp-sub" id="drDimSub">px canvas (tetap, tak ikut layar)</div></div>
+<div class="cp-res"><input id="drW" type="number" value="1080"><button id="drSwap" aria-label="Tukar">CD</button><input id="drH" type="number" value="1920"></div></div>
+<div class="cp-row"><div class="cp-label">Warna kertas</div><button class="cp-select" id="drBg2"><span class="dot" style="background:#ffffff"></span> Putih</button></div>
 <div class="cp-foot"><button id="cpDrawCreate" class="btn-text">BUAT KERTAS</button></div>
 </div>
 <button id="sheetClose" class="sheet-x" aria-label="Tutup">X</button>
@@ -231,6 +233,49 @@
 <div class="imp-head"><span class="imp-sp"></span><h3>Impor <span id="impCount">Proyek</span></h3><button id="impClose" class="sheet-x" aria-label="Tutup">X</button></div>
 <div id="impList" class="imp-list"></div>
 <div id="impTotal" class="imp-total"></div>
+</div>
+</div>
+
+<!-- DRAWING WORKSPACE (koordinat canvas native, bukan timeline video) -->
+<section id="viewDraw" class="view">
+<header class="ed-top">
+<button id="drBack" class="icon-btn light" aria-label="Kembali"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 4H6v16h9M10 12H2M6 8l-4 4 4 4" fill="none" stroke="#E8EAF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<input id="drName" class="ed-name" value="Gambar" maxlength="60">
+<button id="drLayers" class="icon-btn light" aria-label="Layer"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#E8EAF2" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
+<button id="drExport" class="icon-btn light" aria-label="Ekspor"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#E8EAF2" stroke-width="1.8"><path d="M14 4h6v6M20 4L10 14M18 13v7H4V6h7"/></svg></button>
+</header>
+<div id="drTools" class="dr-tools"></div>
+<div id="drWrap" class="dr-wrap"><canvas id="drawCanvas"></canvas>
+<div id="drLayersPanel" class="dr-layers" hidden></div>
+</div>
+<div class="dr-transport">
+<button id="drPlay" class="tr" aria-label="Putar">▶</button>
+<button id="drRestart" class="tr" aria-label="Awal">⏮</button>
+<div id="drProgWrap" class="dr-prog"><div id="drProgFill" class="dr-prog-fill"></div></div>
+<span id="drTime" class="timecode">00:00</span>
+<button id="drSpeed" class="tl-tool">1×</button>
+<button id="drAuto" class="tl-tool" aria-label="Auto Draw">✎</button>
+</div>
+<div id="drStatus" class="iq-status"></div>
+</section>
+
+<!-- AUTO DRAW SHEET -->
+<div id="sheetAuto" class="sheet-mask" hidden>
+<div class="sheet light-sheet">
+<div class="exp-head"><button id="autoClose">X</button><h3>Auto Draw</h3><span></span></div>
+<div id="autoBody"></div>
+</div>
+</div>
+
+<!-- DRAW EXPORT SHEET -->
+<div id="sheetDrawExport" class="sheet-mask" hidden>
+<div class="sheet light-sheet">
+<div class="exp-head"><button id="drExpClose">X</button><h3>Ekspor Gambar</h3><span></span></div>
+<label class="exp-opt"><input type="radio" name="drExpType" value="png" checked><span class="radio"></span><span class="exp-txt"><b>PNG resolusi penuh</b><small id="drExpPngSub">Ukuran canvas asli</small></span></label>
+<label class="exp-opt"><input type="radio" name="drExpType" value="video"><span class="radio"></span><span class="exp-txt"><b>Video replay</b><small>Merekam pemutaran sesuai record speed</small></span></label>
+<label class="exp-opt"><input type="radio" name="drExpType" value="tovideo"><span class="radio"></span><span class="exp-txt"><b>Kirim ke Video Editor</b><small>Sebagai image layer</small></span></label>
+<button id="drExpGo" class="btn-export">Ekspor</button>
+<div id="drExpStatus" class="iq-status"></div>
 </div>
 </div>
 

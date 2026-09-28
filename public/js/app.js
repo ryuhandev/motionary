@@ -3,6 +3,7 @@ import { parseAMXML, xmlToProject, EXAMPLE_LINK, fontStackFor } from './preset.j
 import * as AMGL from './amgl.js';
 import { framePlanForExport, audioChunkTimestampUs, dimsForTargetShort, bitrateForRes, cameraZoomOf, RES_SHORT_STEPS, qualityKeyOf, qualityDef, videoBitrate, estimateBytes, fmtSize } from './export-plan.js';
 import { PAPER_RATIOS, PAPER_RES, paperDims, serpentinePath, sobelEdges, chainStrokes, polyLen, strokesTotalLen, planTiming, fmtEta, revealAt, recordSpeedForTarget } from './draw-engine.js';
+import { paperPresets, paperDimsFor, fmtClock, mapImageToCanvas, docRevealAt, planAutoStrokes, visiblePoints, docDuration, DRAW_SPEEDS, REPLAY_SPEEDS } from './draw-doc.js';
 
 const $ = (s)=>document.querySelector(s);
 const $$ = (s)=>[...document.querySelectorAll(s)];
@@ -336,7 +337,18 @@ function renderTpl(){
 }
 function renderProjects(){
   const list=$('#projectList'); list.innerHTML='';
-  if(!S.projects.length){ const e=document.createElement('div');e.className='iq-status';e.textContent='Belum ada proyek. Buat baru atau muat preset dari link.';list.appendChild(e);return }
+  const docs=drawStoreLoad();
+  if(docs.length){
+    const h=document.createElement('div');h.className='home-row-head';
+    h.innerHTML='<h2>Gambar</h2>';list.appendChild(h);
+    docs.forEach(d=>{
+      const el=document.createElement('div');el.className='proj-card';
+      el.innerHTML='<div class="proj-thumb"><canvas width="92" height="92"></canvas><span class="proj-dur">'+fmtClock(d.durationMs||1000)+'</span></div><div><h3>'+escapeHtml(d.name||'Gambar')+'</h3><div class="proj-meta"><span>'+d.w+'x'+d.h+'</span><span>Drawing</span><span>'+(d.layers||[]).length+' layer</span></div></div>';
+      el.onclick=()=>openDrawDoc(d.id);
+      list.appendChild(el);
+    });
+  }
+  if(!S.projects.length&&!docs.length){ const e=document.createElement('div');e.className='iq-status';e.textContent='Belum ada proyek. Buat baru atau muat preset dari link.';list.appendChild(e);return }
   S.projects.forEach(p=>{
     const d=document.createElement('div');d.className='proj-card';
     d.innerHTML='<div class="proj-thumb"><canvas width="92" height="92"></canvas><span class="proj-dur">'+fmtTC(p.durationMs||2000,p.fps||60)+'</span></div><div><h3>'+escapeHtml(p.name)+'</h3><div class="proj-meta"><span>'+p.w+'x'+p.h+'</span><span>'+p.fps+'fps</span><span>'+p.layers.length+' layer</span></div></div>';
@@ -354,24 +366,26 @@ function drawThumb(cv,p){
 
 /* ---------- create sheet ---------- */
 let cpAspect='9:16', cpW=960, cpH=1560, cpFps=60, cpBg='#00A651', cpBgName='Hijau';
-let drRatio='9:16', drRes=1080, drBg='#FFFFFF';
-function syncDrSub(){ const d=paperDims(drRatio,drRes); $('#drResSub').textContent='Sisi panjang: '+drRes+'px → '+d.w+' X '+d.h }
-// Kertas gambar baru (proyek + 1 layer drawing full-bleed).
+// Setup kertas drawing: preset + DPI + orientasi + custom W/H.
+// Internal canvas TETAP apa pun ukuran layar (sumber kebenaran).
+let drPreset='portrait', drDpi=300, drOrient='portrait', drW=1080, drH=1920, drBg='#FFFFFF';
+function syncDrawSetup(fromWH){
+  const d=paperDimsFor(drPreset==='custom'?'custom':drPreset,drDpi,drOrient,drW,drH);
+  if(!fromWH||drPreset!=='custom'){ drW=d.w; drH=d.h }
+  $('#drW').value=drW; $('#drH').value=drH;
+  $('#drDpiSub').textContent=drDpi+' dpi'+(d.dpi?'':' (non-A)')+' · '+drOrient;
+  $('#drDimSub').textContent=d.w+' X '+d.h+' px canvas (tetap, tak ikut layar)';
+  return d;
+}
+// Dokumen gambar baru -> buka Drawing workspace (bukan video editor).
 function createDrawPaper(){
+  const d=syncDrawSetup(false);
   const name=($('#cpName').value||'Gambar Baru').slice(0,48);
-  const d=paperDims(drRatio,drRes);
-  const p=defaultProject(name,d.w,d.h,60,drBg);
-  p.drawProject=true;
-  S.projects.unshift(p); saveProjects(S.projects); closeCreate();
-  S.active=p; S.T=0; S.playing=false; S.sel=null; S.showAdd=false; S.undoStack=[]; S.redoStack=[];
-  const l=makeDrawingLayer(); p.layers.push(l);
-  S.sel=l.id; S.sub='draw';
-  hydratePresetMedia(p);
-  $('#viewHome').classList.remove('active'); $('#viewEditor').classList.add('active');
-  $('#edName').value=p.name;
-  sizePreview(); renderLayerBar(); renderBottom(); requestAnimationFrame(loop);
-  warmGL();
-  toast('Kertas siap — pilih Auto Draw atau Kuas');
+  const doc=newDrawDoc(name,d.w,d.h,d.dpi,drBg);
+  const list=drawStoreLoad(); list.unshift(doc); drawStoreSave(list);
+  closeCreate();
+  openDrawDoc(doc.id);
+  toast('Kertas '+d.w+'×'+d.h+' siap — Kuas atau Auto Draw');
 }
 const AR_MAP={'16:9':[960,540],'9:16':[960,1560],'4:5':[1080,1350],'1:1':[1080,1080],'4:3':[960,720]};
 function openCreate(){ $('#sheetCreate').hidden=false; }
@@ -398,10 +412,14 @@ function bindCreate(){
   $$('.seg-btn').forEach(b=>b.onclick=()=>{$$('.seg-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
     const tab=b.dataset.tab==='drawing'?'drawing':'proyek';
     $('#cpProyekWrap').hidden=tab!=='proyek'; $('#cpDrawWrap').hidden=tab!=='drawing' });
-  // --- tab drawing: kertas ala ibis ---
-  $$('#drawRatioRow button').forEach(b=>b.onclick=()=>{ $$('#drawRatioRow button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); drRatio=b.dataset.dr; syncDrSub() });
-  $$('#drResRow button').forEach(b=>b.onclick=()=>{ drRes=+b.dataset.dres||1080; syncDrSub() });
-  $('#drBg').onclick=()=>{ const opts=[['Putih','#FFFFFF'],['Hitam','#000000'],['Krem','#F5EFE0'],['Abu','#9AA0AA']]; const cur=opts.findIndex(o=>o[1]===drBg); const nx=opts[(cur+1)%opts.length]; drBg=nx[1]; $('#drBg').innerHTML='<span class="dot" style="background:'+drBg+'"></span> '+nx[0] };
+  // --- tab drawing: setup kertas (viewport ≠ geometri) ---
+  $$('#drawPresetRow button').forEach(b=>b.onclick=()=>{ $$('#drawPresetRow button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); drPreset=b.dataset.dp; syncDrawSetup(false) });
+  $$('#drDpiRow button').forEach(b=>b.onclick=()=>{ drDpi=+b.dataset.ddpi||300; syncDrawSetup(false) });
+  $('#drOrient').onclick=()=>{ drOrient=drOrient==='portrait'?'landscape':'portrait'; $('#drOrient').textContent=drOrient==='portrait'?'Portrait':'Landscape'; syncDrawSetup(false) };
+  $('#drW').oninput=e=>{ drW=+e.target.value||drW; drPreset='custom'; $$('#drawPresetRow button').forEach(x=>x.classList.toggle('active',x.dataset.dp==='custom')); syncDrawSetup(true) };
+  $('#drH').oninput=e=>{ drH=+e.target.value||drH; drPreset='custom'; $$('#drawPresetRow button').forEach(x=>x.classList.toggle('active',x.dataset.dp==='custom')); syncDrawSetup(true) };
+  $('#drSwap').onclick=()=>{ const t=drW; drW=drH; drH=t; drPreset='custom'; syncDrawSetup(true) };
+  $('#drBg2').onclick=()=>{ const opts=[['Putih','#FFFFFF'],['Hitam','#000000'],['Krem','#F5EFE0'],['Abu','#9AA0AA']]; const cur=opts.findIndex(o=>o[1]===drBg); const nx=opts[(cur+1)%opts.length]; drBg=nx[1]; $('#drBg2').innerHTML='<span class="dot" style="background:'+drBg+'"></span> '+nx[0] };
   $('#cpDrawCreate').onclick=createDrawPaper;
 }
 /* Preset tersimpan di local device (localStorage), BUKAN di server.
@@ -2806,9 +2824,665 @@ window.__amHeadless = {
   },
 };
 
+/* ============================================================
+   DRAWING STUDIO — workspace terpisah (ibis-style).
+   Koordinat NATIVE canvas (0..w × 0..h) = sumber kebenaran.
+   Viewport {zoom,panX,panY} hanya tampilan. Replay/export/scrub
+   memakai doc-time + canvas coords. Bukan timeline video.
+   ============================================================ */
+const DW = { doc:null, tool:'brush', color:'#111111', size:14, layerId:null,
+  playing:false, lastTs:0, dirty:true, undo:[], recState:null, autoImg:null };
+function drawStoreLoad(){ try{ return JSON.parse(localStorage.getItem('am_draw_docs')||'[]') }catch{ return [] } }
+function drawStoreSave(list){ try{ localStorage.setItem('am_draw_docs',JSON.stringify(list)) }catch(e){ toast('Penyimpanan penuh — hapus gambar lama') } }
+function dwSave(){
+  if(!DW.doc) return;
+  const list=drawStoreLoad();
+  const i=list.findIndex(d=>d.id===DW.doc.id);
+  const snap=JSON.parse(JSON.stringify(DW.doc));
+  if(i>=0) list[i]=snap; else list.unshift(snap);
+  drawStoreSave(list);
+}
+function dwUndoPush(){
+  if(!DW.doc) return;
+  DW.undo.push(JSON.stringify(DW.doc));
+  if(DW.undo.length>20) DW.undo.shift();
+}
+function dwUndo(){
+  const p=DW.undo.pop(); if(!p||!DW.doc) return;
+  const vp=DW.doc.viewport, rp=DW.doc.replay;
+  DW.doc=JSON.parse(p); DW.doc.viewport=DW.doc.viewport||vp; DW.doc.replay=DW.doc.replay||rp;
+  DW.dirty=true; dwSave(); renderDrawAll();
+}
+function newDrawDoc(name,w,h,dpi,bg){
+  return { id:uid(), name:(name||'Gambar').slice(0,48), w, h, dpi:dpi||null, bg:bg||'#FFFFFF',
+    createdAt:Date.now(), durationMs:1000,
+    layers:[{ id:uid(), name:'Layer 1', visible:true, opacity:100, strokes:[] }],
+    viewport:{zoom:1,panX:0,panY:0}, replay:{t:0,playing:false,speed:1} };
+}
+function openDrawDoc(id){
+  const doc=drawStoreLoad().find(d=>d.id===id);
+  if(!doc){ toast('Gambar tidak ada'); return }
+  DW.doc=doc; DW.layerId=(doc.layers[0]||{}).id||null;
+  DW.tool='brush'; DW.playing=false; DW.undo=[]; DW.dirty=true;
+  doc.viewport=doc.viewport||{zoom:1,panX:0,panY:0};
+  doc.replay=doc.replay||{t:0,playing:false,speed:1};
+  $('#viewHome').classList.remove('active'); $('#viewEditor').classList.remove('active');
+  $('#viewDraw').classList.add('active');
+  $('#drName').value=doc.name;
+  buildDrawTools(); fitDrawView(false); renderDrawLayers();
+  requestAnimationFrame(drawLoop);
+}
+function closeDraw(){
+  dwSave(); DW.doc=null; DW.playing=false;
+  $('#viewDraw').classList.remove('active'); $('#viewHome').classList.add('active');
+  renderProjects();
+}
+/* ---------- viewport: murni tampilan ---------- */
+function drawFit(){ // zoom agar pas + origin tengah
+  const wrap=$('#drWrap'), doc=DW.doc;
+  if(!wrap||!doc) return {z:1,ox:0,oy:0};
+  const r=wrap.getBoundingClientRect();
+  const z=Math.min(r.width/doc.w,r.height/doc.h)||1;
+  return { z, ox:(r.width-doc.w*z)/2, oy:(r.height-doc.h*z)/2 };
+}
+function drawTransform(){
+  const doc=DW.doc, f=drawFit(), vp=doc.viewport;
+  const z=f.z*(vp.zoom||1);
+  return { z, ox:f.ox+(vp.panX||0), oy:f.oy+(vp.panY||0) };
+}
+function screenToCanvas(sx,sy){
+  const r=$('#drWrap').getBoundingClientRect(), t=drawTransform();
+  return [(sx-r.left-t.ox)/t.z,(sy-r.top-t.oy)/t.z];
+}
+function zoomDrawAt(sx,sy,factor){
+  const doc=DW.doc; if(!doc) return;
+  const [cx,cy]=screenToCanvas(sx,sy);
+  doc.viewport.zoom=Math.max(0.1,Math.min(8,(doc.viewport.zoom||1)*factor));
+  const r=$('#drWrap').getBoundingClientRect(), t=drawTransform();
+  doc.viewport.panX+= (sx-r.left)-(cx*t.z+t.ox);
+  doc.viewport.panY+= (sy-r.top)-(cy*t.z+t.oy);
+  DW.dirty=true;
+}
+function fitDrawView(reset){
+  const doc=DW.doc; if(!doc) return;
+  if(reset){ doc.viewport.zoom=1; doc.viewport.panX=0; doc.viewport.panY=0 }
+  DW.dirty=true;
+}
+/* ---------- render ---------- */
+function drawBacking(){
+  // Resolusi raster tampilan (geometri tetap native).
+  const doc=DW.doc;
+  const k=Math.min(1,2048/Math.max(doc.w,doc.h));
+  return { W:Math.max(2,Math.round(doc.w*k)), H:Math.max(2,Math.round(doc.h*k)), k };
+}
+function drawRefImage(layer){
+  if(layer._img) return layer._img;
+  const ref=layer.auto&&layer.auto.refData;
+  if(!ref||layer._loading) return null;
+  layer._loading=true;
+  const img=new Image();
+  img.onload=()=>{ layer._img=img; layer._loading=false; DW.dirty=true };
+  img.onerror=()=>{ layer._loading=false };
+  img.src=ref;
+  return null;
+}
+// Render dokumen ke ctx berukuran W×H pada doc-time T.
+function renderDocTo(ctx,W,H,T,speed){
+  const doc=DW.doc;
+  ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle=doc.bg||'#FFFFFF';
+  ctx.fillRect(0,0,W,H);
+  const k=W/doc.w;
+  const tmp=_drawStudioTmp();
+  for(const L of doc.layers){
+    if(L.visible===false) continue;
+    if(tmp.width!==W||tmp.height!==H){ tmp.width=W; tmp.height=H }
+    const g=tmp.getContext('2d');
+    g.setTransform(1,0,0,1,0,0); g.globalAlpha=1; g.globalCompositeOperation='source-over';
+    g.clearRect(0,0,W,H);
+    // goresan timed (manual + sketsa auto)
+    for(const s of (L.strokes||[])){
+      const pts=visiblePoints(s,T,speed);
+      if(pts.length<1) continue;
+      g.strokeStyle=s.color||'#111'; g.lineWidth=Math.max(0.5,(s.size||8)*k);
+      g.lineCap='round'; g.lineJoin='round';
+      g.globalCompositeOperation=s.tool==='eraser'?'destination-out':'source-over';
+      g.globalAlpha=Math.max(0,Math.min(1,(s.opacity==null?100:s.opacity)/100));
+      g.beginPath();
+      g.moveTo(pts[0][0]*k,pts[0][1]*k);
+      if(pts.length===1) g.lineTo(pts[0][0]*k+0.01,pts[0][1]*k+0.01);
+      for(let i=1;i<pts.length;i++) g.lineTo(pts[i][0]*k,pts[i][1]*k);
+      g.stroke();
+    }
+    g.globalCompositeOperation='source-over'; g.globalAlpha=1;
+    // wash reveal auto (topeng inkremental per-render, murah: ≤~1500 cakram)
+    const au=L.auto;
+    if(au&&au.wash&&au.wash.pts){
+      const img=drawRefImage(L);
+      const fr=docRevealAt(T,au).wash;
+      const kk=Math.floor(fr*(au.wash.pts.length-1));
+      if(img&&kk>=0){
+        const m=_drawStudioMask();
+        if(m.width!==W||m.height!==H){ m.width=W; m.height=H }
+        const mg=m.getContext('2d');
+        mg.setTransform(1,0,0,1,0,0); mg.globalCompositeOperation='source-over';
+        mg.clearRect(0,0,W,H);
+        mg.fillStyle='#fff'; mg.strokeStyle='#fff';
+        mg.lineWidth=Math.max(2,(au.brush||40)*1.1*k); mg.lineCap='round'; mg.lineJoin='round';
+        mg.beginPath();
+        mg.moveTo(au.wash.pts[0][0]*k,au.wash.pts[0][1]*k);
+        for(let j=1;j<=kk;j++) mg.lineTo(au.wash.pts[j][0]*k,au.wash.pts[j][1]*k);
+        mg.stroke();
+        const cut=document.createElement('canvas'); cut.width=W; cut.height=H;
+        const cg=cut.getContext('2d');
+        const mp=au.map||{x:0,y:0,w:doc.w,h:doc.h,rotation:0};
+        cg.save();
+        cg.translate((mp.x+mp.w/2)*k,(mp.y+mp.h/2)*k);
+        cg.rotate((mp.rotation||0)*Math.PI/180);
+        cg.drawImage(img,-mp.w/2*k,-mp.h/2*k,mp.w*k,mp.h*k);
+        cg.restore();
+        cg.globalCompositeOperation='destination-in';
+        cg.drawImage(m,0,0);
+        g.drawImage(cut,0,0);
+      }
+    }
+    ctx.save();
+    ctx.globalAlpha=Math.max(0,Math.min(1,(L.opacity==null?100:L.opacity)/100));
+    ctx.drawImage(tmp,0,0);
+    ctx.restore();
+  }
+  // pena di kepala gambar (mode human yg sedang berjalan)
+  for(const L of doc.layers){
+    if(L.visible===false||!L.auto||L.auto.mode!=='human') continue;
+    const au=L.auto, fr=docRevealAt(T,au);
+    if((fr.sketch<=0&&fr.wash<=0)||(fr.sketch>=1&&fr.wash>=1)) continue;
+    let hx=null, hy=null;
+    if(fr.wash>0&&au.wash&&au.wash.pts.length){
+      const p=au.wash.pts[Math.min(au.wash.pts.length-1,Math.floor(fr.wash*(au.wash.pts.length-1)))];
+      hx=p[0]; hy=p[1];
+    } else {
+      outer: for(let i=L.strokes.length-1;i>=0;i--){
+        const pts=visiblePoints(L.strokes[i],T,speed);
+        if(pts.length){ const q=pts[pts.length-1]; hx=q[0]; hy=q[1]; break outer }
+      }
+    }
+    if(hx===null) continue;
+    const br=Math.max(3,(au.brush||40)*0.62*k);
+    ctx.save();
+    ctx.strokeStyle='rgba(17,17,17,.9)'; ctx.lineWidth=Math.max(1.5,br*0.14);
+    ctx.beginPath(); ctx.arc(hx*k,hy*k,br,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#111';
+    ctx.beginPath(); ctx.arc(hx*k,hy*k,Math.max(1.5,br*0.13),0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+function _drawStudioTmp(){
+  if(!_drawStudioTmp._c) _drawStudioTmp._c=document.createElement('canvas');
+  return _drawStudioTmp._c;
+}
+function _drawStudioMask(){
+  if(!_drawStudioMask._c) _drawStudioMask._c=document.createElement('canvas');
+  return _drawStudioMask._c;
+}
+/* ---------- loop + kanvas layar ---------- */
+function drawLoop(ts){
+  if(!$('#viewDraw').classList.contains('active')||!DW.doc) return;
+  const rp=DW.doc.replay;
+  if(DW.playing){
+    if(!DW.lastTs) DW.lastTs=ts;
+    const dt=ts-DW.lastTs; DW.lastTs=ts;
+    rp.t+=dt*(rp.speed||1);
+    if(rp.t>=DW.doc.durationMs){ rp.t=DW.doc.durationMs; DW.playing=false; setDrawPlayIcon() }
+    DW.dirty=true; syncDrawTransport();
+  } else DW.lastTs=ts;
+  if(DW.dirty){ renderDrawScreen(); DW.dirty=false }
+  requestAnimationFrame(drawLoop);
+}
+function renderDrawScreen(){
+  const doc=DW.doc; if(!doc) return;
+  const cv=$('#drawCanvas'), wrap=$('#drWrap');
+  const r=wrap.getBoundingClientRect();
+  const {W,H}=drawBacking();
+  if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H }
+  renderDocTo(cv.getContext('2d'),W,H,doc.replay.t,doc.replay.speed||1);
+  const t=drawTransform();
+  cv.style.width=(doc.w*t.z)+'px'; cv.style.height=(doc.h*t.z)+'px';
+  cv.style.left=t.ox+'px'; cv.style.top=t.oy+'px';
+  void r;
+}
+function renderDrawAll(){ buildDrawTools(); renderDrawLayers(); syncDrawTransport(); DW.dirty=true }
+function setDrawPlayIcon(){ $('#drPlay').textContent=DW.playing?'⏸':'▶' }
+function syncDrawTransport(){
+  const doc=DW.doc; if(!doc) return;
+  $('#drTime').textContent=fmtClock(doc.replay.t)+' / '+fmtClock(doc.durationMs);
+  $('#drProgFill').style.width=Math.round(Math.max(0,Math.min(1,doc.replay.t/doc.durationMs))*100)+'%';
+  $('#drSpeed').textContent=(doc.replay.speed||1)+'×';
+  setDrawPlayIcon();
+}
+/* ---------- gesture: 1 jari gambar, 2 jari pan/pinch ---------- */
+function bindDrawGestures(){
+  const wrap=$('#drWrap');
+  const ptrs=new Map(); let pinch=null, stroke=null;
+  const pos=(e)=>[e.clientX,e.clientY];
+  wrap.addEventListener('pointerdown',e=>{
+    if(!DW.doc) return;
+    try{ wrap.setPointerCapture(e.pointerId) }catch{}
+    ptrs.set(e.pointerId,pos(e));
+    if(ptrs.size===2){
+      const xs=[...ptrs.values()];
+      pinch={ d0:Math.max(24,Math.hypot(xs[0][0]-xs[1][0],xs[0][1]-xs[1][1])),
+        zoom0:DW.doc.viewport.zoom||1, cx:(xs[0][0]+xs[1][0])/2, cy:(xs[0][1]+xs[1][1])/2,
+        px:(xs[0][0]+xs[1][0])/2, py:(xs[0][1]+xs[1][1])/2 };
+      stroke=null; return;
+    }
+    if(DW.tool==='pan'||!drawTargetLayer()){ stroke=null; return }
+    // 1 jari + tool gambar -> goresan baru (waktu doc = replay.t)
+    const [cx,cy]=screenToCanvas(e.clientX,e.clientY);
+    dwUndoPush();
+    stroke={ id:uid(), tool:DW.tool==='eraser'?'eraser':'brush',
+      color:DW.tool==='eraser'?'#000000':DW.color,
+      size:DW.size, opacity:100, startT:DW.doc.replay.t, pts:[[cx,cy,0]], t0:performance.now() };
+    const L=drawTargetLayer(); L.strokes.push(stroke);
+    DW.doc.durationMs=Math.max(DW.doc.durationMs,stroke.startT+1);
+    DW.dirty=true;
+  });
+  wrap.addEventListener('pointermove',e=>{
+    if(!DW.doc||!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId,pos(e));
+    if(pinch&&ptrs.size>=2){
+      const xs=[...ptrs.values()];
+      const d=Math.max(24,Math.hypot(xs[0][0]-xs[1][0],xs[0][1]-xs[1][1]));
+      const cx=(xs[0][0]+xs[1][0])/2, cy=(xs[0][1]+xs[1][1])/2;
+      // jangkar: titik canvas di tengah jari harus tetap di tengah jari
+      const [acx,acy]=screenToCanvas(cx,cy);
+      DW.doc.viewport.zoom=Math.max(0.1,Math.min(8,pinch.zoom0*d/pinch.d0));
+      const r=$('#drWrap').getBoundingClientRect(), t=drawTransform();
+      DW.doc.viewport.panX+=(cx-r.left)-(acx*t.z+t.ox);
+      DW.doc.viewport.panY+=(cy-r.top)-(acy*t.z+t.oy);
+      // pan dua jari mengikuti gerakan tengah
+      DW.doc.viewport.panX+=(cx-pinch.px); DW.doc.viewport.panY+=(cy-pinch.py);
+      pinch.px=cx; pinch.py=cy;
+      DW.dirty=true; return;
+    }
+    if(stroke){
+      const [cx,cy]=screenToCanvas(e.clientX,e.clientY);
+      const q=stroke.pts[stroke.pts.length-1];
+      if(Math.hypot(cx-q[0],cy-q[1])>Math.max(0.75,1.5/((drawTransform().z)||1))){
+        stroke.pts.push([cx,cy,performance.now()-stroke.t0]);
+        const L=drawTargetLayer();
+        if(L) DW.doc.durationMs=Math.max(DW.doc.durationMs,stroke.startT+stroke.pts[stroke.pts.length-1][2]);
+        DW.dirty=true;
+      }
+      return;
+    }
+    if(ptrs.size===1&&(DW.tool==='pan')){
+      // geser 1 jari saat tool Geser
+      const [px,py]=ptrs.get(e.pointerId);
+      DW.doc.viewport.panX+=e.clientX-px; DW.doc.viewport.panY+=e.clientY-py;
+      ptrs.set(e.pointerId,pos(e));
+      DW.dirty=true;
+    }
+  });
+  const end=e=>{
+    ptrs.delete(e.pointerId);
+    if(ptrs.size<2) pinch=null;
+    if(stroke){ stroke=null; dwSave(); DW.dirty=true }
+  };
+  wrap.addEventListener('pointerup',end);
+  wrap.addEventListener('pointercancel',end);
+  wrap.addEventListener('wheel',e=>{
+    if(!DW.doc) return;
+    e.preventDefault();
+    zoomDrawAt(e.clientX,e.clientY,e.deltaY<0?1.15:1/1.15);
+  },{passive:false});
+}
+function drawTargetLayer(){
+  const doc=DW.doc; if(!doc) return null;
+  return doc.layers.find(l=>l.id===DW.layerId&&l.visible!==false)
+    || doc.layers.find(l=>l.visible!==false) || null;
+}
+/* ---------- toolbar, layer, transport ---------- */
+function buildDrawTools(){
+  const bar=$('#drTools'); if(!bar) return;
+  bar.innerHTML='';
+  const mk=(label,active,fn)=>{
+    const b=document.createElement('button'); b.textContent=label;
+    if(active) b.classList.add('active'); b.onclick=fn; bar.appendChild(b); return b;
+  };
+  mk('Kuas',DW.tool==='brush',()=>{DW.tool='brush';buildDrawTools()});
+  mk('Penghapus',DW.tool==='eraser',()=>{DW.tool='eraser';buildDrawTools()});
+  mk('Geser',DW.tool==='pan',()=>{DW.tool='pan';buildDrawTools()});
+  const col=document.createElement('input'); col.type='color'; col.value=DW.color;
+  col.oninput=()=>{DW.color=col.value}; bar.appendChild(col);
+  const sz=document.createElement('button'); sz.textContent='∅ '+(DW.size|0);
+  sz.onclick=()=>{
+    const v=prompt('Ukuran kuas (px canvas):',String(DW.size));
+    const n=Math.max(1,Math.min(400,+v||DW.size)); DW.size=n; buildDrawTools();
+  };
+  bar.appendChild(sz);
+  mk('↩ Undo',false,()=>dwUndo());
+  const vb=document.createElement('div'); vb.className='dr-viewbtns'; vb.style.flex='1';
+  const bFit=document.createElement('button'); bFit.textContent='Fit';
+  bFit.onclick=()=>fitDrawView(true);
+  const bIn=document.createElement('button'); bIn.textContent='＋';
+  bIn.onclick=()=>{ const r=$('#drWrap').getBoundingClientRect(); zoomDrawAt(r.left+r.width/2,r.top+r.height/2,1.25) };
+  const bOut=document.createElement('button'); bOut.textContent='－';
+  bOut.onclick=()=>{ const r=$('#drWrap').getBoundingClientRect(); zoomDrawAt(r.left+r.width/2,r.top+r.height/2,1/1.25) };
+  const b11=document.createElement('button'); b11.textContent='1:1';
+  b11.onclick=()=>{ if(DW.doc){ DW.doc.viewport.zoom=1/Math.max(0.01,drawFit().z); DW.doc.viewport.panX=0; DW.doc.viewport.panY=0; DW.dirty=true } };
+  vb.append(bFit,bIn,bOut,b11); bar.appendChild(vb);
+}
+function renderDrawLayers(){
+  const p=$('#drLayersPanel'); if(!p||!DW.doc) return;
+  p.innerHTML='';
+  const add=document.createElement('button'); add.className='mini'; add.textContent='+ Layer';
+  add.onclick=()=>{ dwUndoPush(); DW.doc.layers.push({id:uid(),name:'Layer '+(DW.doc.layers.length+1),visible:true,opacity:100,strokes:[]}); DW.layerId=DW.doc.layers[DW.doc.layers.length-1].id; dwSave(); renderDrawLayers(); DW.dirty=true };
+  p.appendChild(add);
+  [...DW.doc.layers].reverse().forEach(L=>{
+    const d=document.createElement('div');
+    d.className='dr-layer'+(L.id===DW.layerId?' active':'');
+    const eye=document.createElement('button'); eye.textContent=L.visible===false?'🚫':'👁';
+    eye.onclick=(e)=>{ e.stopPropagation(); L.visible=L.visible===false?true:false; dwSave(); renderDrawLayers(); DW.dirty=true };
+    const nm=document.createElement('span'); nm.style.flex='1'; nm.textContent=L.name+' ('+(L.strokes||[]).length+')';
+    const del=document.createElement('button'); del.textContent='✕';
+    del.onclick=(e)=>{ e.stopPropagation(); if(DW.doc.layers.length<=1){ toast('Minimal 1 layer'); return } dwUndoPush(); DW.doc.layers=DW.doc.layers.filter(x=>x.id!==L.id); if(DW.layerId===L.id) DW.layerId=DW.doc.layers[0].id; DW.doc.durationMs=docDuration(DW.doc); dwSave(); renderDrawLayers(); DW.dirty=true };
+    d.onclick=()=>{ DW.layerId=L.id; renderDrawLayers() };
+    d.append(eye,nm,del); p.appendChild(d);
+  });
+}
+function bindDrawChrome(){
+  $('#drBack').onclick=closeDraw;
+  $('#drName').oninput=e=>{ if(DW.doc){ DW.doc.name=e.target.value.slice(0,48); dwSave() } };
+  $('#drLayers').onclick=()=>{ const p=$('#drLayersPanel'); p.hidden=!p.hidden };
+  $('#drExport').onclick=drawExportMenu;
+  $('#drPlay').onclick=()=>{
+    if(!DW.doc) return;
+    if(!DW.playing&&DW.doc.replay.t>=DW.doc.durationMs-1) DW.doc.replay.t=0;
+    DW.playing=!DW.playing; DW.lastTs=0; setDrawPlayIcon();
+  };
+  $('#drRestart').onclick=()=>{ if(DW.doc){ DW.doc.replay.t=0; DW.dirty=true; syncDrawTransport() } };
+  $('#drSpeed').onclick=()=>{
+    if(!DW.doc) return;
+    const i=(REPLAY_SPEEDS.indexOf(DW.doc.replay.speed)+1)%REPLAY_SPEEDS.length;
+    DW.doc.replay.speed=REPLAY_SPEEDS[i<0?2:i]||1; syncDrawTransport();
+  };
+  $('#drProgWrap').onclick=(e)=>{
+    if(!DW.doc) return;
+    const r=e.currentTarget.getBoundingClientRect();
+    DW.doc.replay.t=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*DW.doc.durationMs;
+    DW.dirty=true; syncDrawTransport();
+  };
+  $('#drAuto').onclick=openAutoSheet;
+  $('#autoClose').onclick=()=>{ $('#sheetAuto').hidden=true };
+}
+/* ---------- auto draw: mapping + generate ---------- */
+const AUTO = { img:null, iw:0, ih:0, mode:'fit', scale:1, tx:0.5, ty:0.5, rot:0,
+  speedId:'normal', customSpeed:700, recordSpeed:1, drawMode:'human', brush:40 };
+function openAutoSheet(){
+  if(!DW.doc){ toast('Buka gambar dulu'); return }
+  $('#sheetAuto').hidden=false;
+  const body=$('#autoBody'); body.innerHTML='';
+  const pick=document.createElement('button'); pick.className='btn-export'; pick.textContent='Pilih gambar referensi';
+  pick.onclick=()=>$('#drawPickStudio').click();
+  let fileInput=document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*';
+  fileInput.id='drawPickStudio'; fileInput.hidden=true;
+  fileInput.onchange=(e)=>{ const f=e.target.files[0]; e.target.value=''; if(f) loadAutoRef(f) };
+  body.append(pick,fileInput);
+  const cfg=document.createElement('div'); cfg.id='autoCfg'; cfg.hidden=true; body.appendChild(cfg);
+  if(AUTO.img) buildAutoCfg();
+}
+function loadAutoRef(f){
+  const url=URL.createObjectURL(f);
+  const img=new Image();
+  img.onload=()=>{
+    AUTO.img=img; AUTO.iw=img.naturalWidth; AUTO.ih=img.naturalHeight;
+    try{URL.revokeObjectURL(url)}catch{}
+    buildAutoCfg();
+  };
+  img.onerror=()=>toast('Gambar tidak terbaca');
+  img.src=url;
+}
+function autoMapping(){
+  const doc=DW.doc;
+  return mapImageToCanvas(AUTO.iw,AUTO.ih,doc.w,doc.h,
+    {mode:AUTO.mode,scale:AUTO.scale,tx:AUTO.tx,ty:AUTO.ty,offX:0,offY:0,rotation:AUTO.rot});
+}
+function buildAutoCfg(){
+  const cfg=$('#autoCfg'); if(!cfg||!AUTO.img) return;
+  cfg.hidden=false; cfg.innerHTML='';
+  const doc=DW.doc;
+  const thumb=document.createElement('canvas'); thumb.width=180;
+  thumb.height=Math.max(40,Math.round(180*doc.h/doc.w));
+  thumb.style.cssText='width:180px;border-radius:8px;background:#222';
+  cfg.appendChild(thumb);
+  const drawThumb=()=>{
+    const mp=autoMapping();
+    const g=thumb.getContext('2d');
+    g.setTransform(1,0,0,1,0,0); g.fillStyle='#222'; g.fillRect(0,0,thumb.width,thumb.height);
+    const k=thumb.width/doc.w;
+    g.save();
+    g.translate((mp.x+mp.w/2)*k,(mp.y+mp.h/2)*k); g.rotate(mp.rotation*Math.PI/180);
+    g.drawImage(AUTO.img,-mp.w/2*k,-mp.h/2*k,mp.w*k,mp.h*k);
+    g.restore();
+    g.strokeStyle='#00E08A'; g.setLineDash([5,4]);
+    g.strokeRect(mp.x*k,mp.y*k,mp.w*k,mp.h*k); g.setLineDash([]);
+  };
+  const rowMode=document.createElement('div'); rowMode.className='mini-row';
+  ['fit','fill','original','custom'].forEach(m=>{
+    const b=document.createElement('button'); b.className='mini';
+    b.textContent={fit:'Fit',fill:'Fill',original:'Asli',custom:'Custom'}[m]+(AUTO.mode===m?' ✓':'');
+    b.onclick=()=>{ AUTO.mode=m; buildAutoCfg() };
+    rowMode.appendChild(b);
+  });
+  cfg.appendChild(rowMode);
+  const eta=document.createElement('div'); eta.className='iq-status'; eta.id='autoEta';
+  const updEta=()=>{ eta.textContent=autoEtaText() };
+  if(AUTO.mode==='custom') sliderRow(cfg,'Skala',AUTO.scale,0.1,3,v=>{AUTO.scale=v;drawThumb()},{live:true});
+  sliderRow(cfg,'Pos X',AUTO.tx,0,1,v=>{AUTO.tx=v;drawThumb()},{live:true});
+  sliderRow(cfg,'Pos Y',AUTO.ty,0,1,v=>{AUTO.ty=v;drawThumb()},{live:true});
+  sliderRow(cfg,'Rotasi',AUTO.rot,-180,180,v=>{AUTO.rot=v;drawThumb()},{live:true});
+  const rowSp=document.createElement('div'); rowSp.className='mini-row';
+  DRAW_SPEEDS.forEach(s=>{
+    const b=document.createElement('button'); b.className='mini';
+    b.textContent=s.label+(AUTO.speedId===s.id?' ✓':'');
+    b.onclick=()=>{ AUTO.speedId=s.id; buildAutoCfg() };
+    rowSp.appendChild(b);
+  });
+  cfg.appendChild(rowSp);
+  sliderRow(cfg,'Custom px/dtk',AUTO.customSpeed,30,6000,v=>{AUTO.customSpeed=v;AUTO.speedId='custom';updEta()},{live:true});
+  const rowRs=document.createElement('div'); rowRs.className='mini-row';
+  const rsLb=document.createElement('span'); rsLb.style.cssText='color:#111;font-size:13px;align-self:center';
+  rsLb.textContent='Record:'; rowRs.appendChild(rsLb);
+  [0.5,1,2,4,8].forEach(rv=>{
+    const b=document.createElement('button'); b.className='mini'; b.textContent=rv+'x'+(AUTO.recordSpeed===rv?' ✓':'');
+    b.onclick=()=>{ AUTO.recordSpeed=rv; buildAutoCfg() };
+    rowRs.appendChild(b);
+  });
+  cfg.appendChild(rowRs);
+  const rowMd=document.createElement('div'); rowMd.className='mini-row';
+  [['human','Human Draw'],['instant','Instant']].forEach(([v,t])=>{
+    const b=document.createElement('button'); b.className='mini';
+    b.textContent=t+(AUTO.drawMode===v?' ✓':'');
+    b.onclick=()=>{ AUTO.drawMode=v; buildAutoCfg() };
+    rowMd.appendChild(b);
+  });
+  cfg.appendChild(rowMd);
+  cfg.appendChild(eta); updEta();
+  const go=document.createElement('button'); go.className='btn-export'; go.textContent='Generate';
+  go.onclick=generateAutoDraw;
+  cfg.appendChild(go);
+  const st=document.createElement('div'); st.className='iq-status'; st.id='autoProg'; st.hidden=true;
+  cfg.appendChild(st);
+  drawThumb();
+}
+function autoSpeedPx(){
+  if(AUTO.speedId==='custom') return AUTO.customSpeed;
+  return (DRAW_SPEEDS.find(s=>s.id===AUTO.speedId)||DRAW_SPEEDS[2]).px;
+}
+function autoEtaText(){
+  const doc=DW.doc; if(!doc||!AUTO.img) return '';
+  // Estimasi dari kompleksitas aktual (tepi dihitung cepat di res kecil).
+  return 'Kecepatan '+(AUTO.speedId==='custom'?AUTO.customSpeed+' px/dtk':(DRAW_SPEEDS.find(s=>s.id===AUTO.speedId)||{}).label||'')
+    +' · mode '+AUTO.drawMode+' · record '+AUTO.recordSpeed+'x. Estimasi tepat dihitung saat Generate.';
+}
+async function generateAutoDraw(){
+  const doc=DW.doc, L=drawTargetLayer();
+  if(!doc||!L||!AUTO.img){ toast('Pilih gambar dulu'); return }
+  const st=$('#autoProg');
+  const say=(m)=>{ if(st){st.hidden=false;st.textContent=m} };
+  try{
+    say('Analyzing…'); await new Promise(r=>setTimeout(r,0));
+    const mp=autoMapping();
+    // tepi pada res kerja (koordinat dipetakan ke canvas native)
+    const ww=240, wh=Math.max(2,Math.round(240*AUTO.ih/AUTO.iw));
+    const wc=document.createElement('canvas'); wc.width=ww; wc.height=wh;
+    const wg=wc.getContext('2d',{willReadFrequently:true});
+    wg.drawImage(AUTO.img,0,0,ww,wh);
+    const id=wg.getImageData(0,0,ww,wh).data;
+    const gray=new Uint8Array(ww*wh);
+    for(let i=0;i<ww*wh;i++) gray[i]=(id[i*4]+id[i*4+1]+id[i*4+2])/3;
+    say('Generating sketsa…'); await new Promise(r=>setTimeout(r,0));
+    const raw=chainStrokes(sobelEdges(gray,ww,wh,110),ww,wh,2.2,3,6000);
+    // peta ke canvas: rotasi di sekitar pusat rect bila perlu
+    const rot=(mp.rotation||0)*Math.PI/180, ca=Math.cos(rot), sa=Math.sin(rot);
+    const toCanvas=(px,py)=>{
+      let x=mp.x+px/ww*mp.w, y=mp.y+py/wh*mp.h;
+      if(rot){ const cx=mp.x+mp.w/2, cy=mp.y+mp.h/2;
+        x=cx+(x-cx)*ca-(y-cy)*sa; y=cy+(x-cx)*sa+(y-cy)*ca }
+      return [x,y];
+    };
+    const edgeStrokes=raw.map(pts=>pts.map(p=>toCanvas(p[0],p[1])));
+    // sapuan warna serpentine LANGSUNG di koordinat canvas native
+    // (di atas rect mapping — posisi/proporsi = reference).
+    const spacing=Math.max(6,Math.min(mp.w,mp.h)/36);
+    const coverPts=[], coverCum=[0]; let covTotal=0, qx=1e18, qy=0;
+    let row=0;
+    for(let y=mp.y+spacing/2;y<mp.y+mp.h;y+=spacing,row++){
+      const xs=[];
+      for(let x=mp.x+spacing/2;x<mp.x+mp.w;x+=spacing) xs.push(x);
+      if(row%2) xs.reverse();
+      for(const x of xs){
+        coverPts.push([x,y]);
+        if(qx<1e17) covTotal+=Math.hypot(x-qx,y-qy);
+        coverCum.push(covTotal); qx=x; qy=y;
+      }
+    }
+    if(rot){ const cx=mp.x+mp.w/2, cy=mp.y+mp.h/2;
+      for(const p of coverPts){ const dx=p[0]-cx, dy=p[1]-cy;
+        p[0]=cx+dx*ca-dy*sa; p[1]=cy+dx*sa+dy*ca } }
+    say('Menyusun timing…'); await new Promise(r=>setTimeout(r,0));
+    const plan=planAutoStrokes(edgeStrokes,coverPts,coverCum,autoSpeedPx(),AUTO.recordSpeed);
+    dwUndoPush();
+    // referensi warna (persist, ≤1024px)
+    const rs=Math.min(1,1024/Math.max(AUTO.iw,AUTO.ih));
+    const rc2=document.createElement('canvas');
+    rc2.width=Math.max(2,Math.round(AUTO.iw*rs)); rc2.height=Math.max(2,Math.round(AUTO.ih*rs));
+    rc2.getContext('2d').drawImage(AUTO.img,0,0,rc2.width,rc2.height);
+    const refData=rc2.toDataURL('image/jpeg',0.85);
+    L.strokes.push(...plan.strokes.map(s=>({ id:uid(), tool:'brush', color:'#23232b',
+      size:Math.max(1.5,Math.min(mp.w,mp.h)/280), opacity:100, startT:s.startT,
+      pts:s.pts.map(p=>[p[0],p[1],p[2]]) })));
+    L.auto={ mode:AUTO.drawMode, sketchMs:plan.sketchMs, colorMs:plan.colorMs,
+      brush:Math.max(8,spacing*1.6), refData, map:{x:mp.x,y:mp.y,w:mp.w,h:mp.h,rotation:mp.rotation},
+      wash:plan.wash };
+    L._img=null; L._loading=false;
+    doc.durationMs=Math.max(doc.durationMs,plan.totalMs);
+    doc.replay.t=0;
+    dwSave(); renderDrawLayers(); DW.dirty=true; syncDrawTransport();
+    $('#sheetAuto').hidden=true;
+    toast(AUTO.drawMode==='instant'?'Instant selesai':'Human Draw siap: '+fmtClock(plan.totalMs));
+  }catch(e){ say('Gagal: '+((e&&e.message)||e)) }
+}
+function drawExportMenu(){
+  if(!DW.doc) return;
+  const d=DW.doc;
+  $('#drExpPngSub').textContent=d.w+'×'+d.h+' px';
+  $('#sheetDrawExport').hidden=false;
+}
+function bindDrawExport(){
+  $('#drExpClose').onclick=()=>{ $('#sheetDrawExport').hidden=true };
+  $('#drExpGo').onclick=()=>{
+    const t=document.querySelector('input[name=drExpType]:checked')?.value||'png';
+    $('#sheetDrawExport').hidden=true;
+    if(t==='png') drawExportPng();
+    else if(t==='video') drawExportVideo();
+    else drawToVideoProject();
+  };
+}
+function drawExportPng(){
+  const doc=DW.doc; if(!doc) return;
+  const st=$('#drStatus'); st.textContent='Merender PNG '+doc.w+'×'+doc.h+'…';
+  setTimeout(()=>{
+    try{
+      const cv=document.createElement('canvas'); cv.width=doc.w; cv.height=doc.h;
+      renderDocTo(cv.getContext('2d'),doc.w,doc.h,doc.durationMs,1);
+      cv.toBlob(b=>{
+        if(!b){ st.textContent='Gagal membuat PNG.'; return }
+        downloadBlob(b,(doc.name||'gambar')+'.png');
+        st.textContent='PNG tersimpan ('+(b.size/1e6).toFixed(1)+'MB).';
+      },'image/png');
+    }catch(e){ st.textContent='Gagal: '+(e.message||e) }
+  },30);
+}
+async function drawExportVideo(){
+  const doc=DW.doc; if(!doc) return;
+  const st=$('#drStatus');
+  const speed=doc.replay.speed||1;
+  const cv=$('#drawCanvas');
+  let stream=null;
+  try{ stream=cv.captureStream(30) }catch{ st.textContent='Browser tidak mendukung rekam kanvas.'; return }
+  const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9','video/webm']
+    .find(m=>{ try{return MediaRecorder.isTypeSupported(m)}catch{return false} })||'';
+  if(!mime){ st.textContent='Browser tidak mendukung MediaRecorder.'; return }
+  const rec=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+  const chunks=[];
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data) };
+  const done=new Promise(res=>{ rec.onstop=res });
+  doc.replay.t=0; DW.playing=true; DW.lastTs=0; setDrawPlayIcon();
+  st.textContent='Merekam replay '+speed+'x…';
+  try{ rec.start(250) }catch{ st.textContent='Gagal merekam.'; return }
+  const t0=performance.now();
+  const watch=setInterval(()=>{
+    st.textContent='Merekam '+( (performance.now()-t0)/1000).toFixed(1)+' dtk…';
+    if(!DW.playing){ clearInterval(watch); try{rec.stop()}catch{} }
+  },500);
+  await done;
+  clearInterval(watch);
+  const blob=new Blob(chunks,{type:mime.split(';')[0]||'video/webm'});
+  const ext=blob.type.includes('mp4')?'.mp4':'.webm';
+  downloadBlob(blob,(doc.name||'gambar')+ext);
+  st.textContent='Video tersimpan ('+(blob.size/1e6).toFixed(1)+'MB).';
+}
+// Jembatan: gambar -> proyek video (image layer full-bleed).
+function drawToVideoProject(){
+  const doc=DW.doc; if(!doc) return;
+  const st=$('#drStatus'); st.textContent='Menyiapkan proyek video…';
+  setTimeout(()=>{
+    const cv=document.createElement('canvas'); cv.width=doc.w; cv.height=doc.h;
+    renderDocTo(cv.getContext('2d'),doc.w,doc.h,doc.durationMs,1);
+    cv.toBlob(b=>{
+      if(!b){ st.textContent='Gagal.'; return }
+      const url=URL.createObjectURL(b);
+      const p=defaultProject(doc.name,doc.w,doc.h,60,'#000000');
+      S.projects.unshift(p); saveProjects(S.projects);
+      S.active=p; S.T=0; S.playing=false; S.sel=null; S.showAdd=false; S.undoStack=[]; S.redoStack=[];
+      const l=makeShape('rect'); l.type='image'; l.mediaKind='image';
+      l.name='Dari Drawing'; l.mediaSrc=url; l.sx=2*doc.w; l.sy=2*doc.h;
+      p.layers.push(l);
+      const img=new Image(); img.onload=()=>{ l._img=img; renderFrame() }; img.src=url;
+      $('#viewDraw').classList.remove('active'); $('#viewEditor').classList.add('active');
+      $('#edName').value=p.name;
+      DW.doc=null; DW.playing=false;
+      sizePreview(); renderLayerBar(); renderBottom(); requestAnimationFrame(loop);
+      warmGL();
+      toast('Dikirim ke Video Editor');
+    },'image/png');
+  },30);
+}
 /* boot */
 function boot(){
   renderTpl(); renderProjects(); bindCreate(); bindEditor();
+  bindDrawChrome(); bindDrawGestures(); bindDrawExport();
   $('#iqLink').value=EXAMPLE_LINK; $('#cpLink').value=EXAMPLE_LINK;
   // seed demo if empty
   if(!S.projects.length){
