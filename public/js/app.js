@@ -2,6 +2,7 @@ import { FX_CATALOG, applyFxStack, applyTransformFx, fxDefault } from './fx.js';
 import { parseAMXML, xmlToProject, EXAMPLE_LINK, fontStackFor } from './preset.js';
 import * as AMGL from './amgl.js';
 import { framePlanForExport, audioChunkTimestampUs, dimsForTargetShort, bitrateForRes, cameraZoomOf, RES_SHORT_STEPS, qualityKeyOf, qualityDef, videoBitrate, estimateBytes, fmtSize } from './export-plan.js';
+import { PAPER_RATIOS, PAPER_RES, paperDims, serpentinePath, sobelEdges, chainStrokes, polyLen, strokesTotalLen, planTiming, fmtEta, revealAt } from './draw-engine.js';
 
 const $ = (s)=>document.querySelector(s);
 const $$ = (s)=>[...document.querySelectorAll(s)];
@@ -20,7 +21,7 @@ const store = {
   set projects(v){ localStorage.setItem('am_projects2', JSON.stringify(v).map(p=>({...p, layers:p.layers.map(l=>({...l, mediaSrc:undefined, mediaEl:undefined}))}))) }
 };
 function saveProjects(list){ try{localStorage.setItem('am_projects2', JSON.stringify(list.map(p=>({id:p.id,name:p.name,w:p.w,h:p.h,projW:p.projW||null,projH:p.projH||null,fps:p.fps,bg:p.bg,durationMs:p.durationMs,createdAt:p.createdAt,pkgId:p.pkgId||null,shareLink:p.shareLink||null,layers:p.layers.map(l=>stripLayer(l))}))))}catch(e){} }
-function stripLayer(l){ const c={...l}; delete c.mediaEl; if(c.mediaSrc && c.mediaSrc.startsWith('blob:')) delete c.mediaSrc; delete c._img; delete c._vid; delete c._aud; delete c._waveBusy; return c }
+function stripLayer(l){ const c={...l}; delete c.mediaEl; if(c.mediaSrc && c.mediaSrc.startsWith('blob:')) delete c.mediaSrc; delete c._img; delete c._vid; delete c._aud; delete c._waveBusy; delete c._drawCache; delete c._dimg; delete c._dloading; return c }
 
 /* ---------- state ---------- */
 const S = {
@@ -54,6 +55,256 @@ function makeText(txt='Teks'){
   const l = makeShape('text'); l.type='text'; l.name='Teks '+(S.active.layers.length+1);
   l.text={content:txt,font:'Roboto Regular',size:64,align:'center',color:'#FFFFFF'}; l.color='#FFFFFF'; return l;
 }
+/* ---------- drawing (kertas + auto draw ala ibis) ---------- */
+function makeDrawingLayer(){
+  const P=S.active;
+  // Kotak full-bleed: lebar comp = sx/2 -> sx = 2*P.w.
+  const l=makeShape('rect'); l.type='drawing'; l.name='Gambar '+(P.layers.length+1);
+  l.sx=2*P.w; l.sy=2*P.h; l.x=P.w/2; l.y=P.h/2;
+  l.color='#FFFFFF'; l.shapeKind='rect';
+  l.draw={ mode:'human', penSpeed:900, recordSpeed:1, brush:46,
+    sketchColor:'#23232b', strokes:[], manual:[], cover:null,
+    refData:null, sketchLen:0, coverLen:0, sketchMs:0, colorMs:0, rev:0 };
+  return l;
+}
+function ensureDrawImage(l){
+  const d=l.draw; if(!d||!d.refData||l._dimg||l._dloading) return;
+  l._dloading=true;
+  const img=new Image();
+  img.onload=()=>{ l._dimg=img; l._dloading=false; if(S.active) renderFrame() };
+  img.onerror=()=>{ l._dloading=false };
+  img.src=d.refData;
+}
+// unit kotak -> px kerja
+function drawDrawing(c, l, T){
+  const d=l.draw; if(!d) return;
+  const W2=360, H2=360;
+  const u=W2/100; // px kerja per unit kotak
+  const key=W2+'x'+H2+':'+(d.rev||0)+':'+(d.mode||'human');
+  let cache=l._drawCache;
+  if(!cache||cache.key!==key||T<cache.t-0.001||!cache.mask||!cache.sk){
+    cache=l._drawCache={ key, t:-1,
+      mask:Object.assign(document.createElement('canvas'),{width:W2,height:H2}),
+      sk:Object.assign(document.createElement('canvas'),{width:W2,height:H2}),
+      man:Object.assign(document.createElement('canvas'),{width:W2,height:H2}),
+      ki:-1, si:0, skDone:0 };
+  }
+  ensureDrawImage(l);
+  const mctx=cache.mask.getContext('2d'), sctx=cache.sk.getContext('2d');
+  const f=revealAt(T-(l.startMs||0), d.sketchMs||0, d.colorMs||0, d.mode);
+  // --- 1. topeng reveal (inkremental bila T maju) ---
+  if(d.cover&&d.cover.pts&&l._dimg){
+    const target=Math.floor(f.color*(d.cover.pts.length-1));
+    mctx.fillStyle='#fff'; mctx.strokeStyle='#fff';
+    mctx.lineWidth=Math.max(2,(d.brush||46)*0.62/(Math.abs(l.sx||200)/200)*u);
+    mctx.lineCap='round'; mctx.lineJoin='round';
+    let k=cache.ki; // indeks terakhir yg sudah digambar
+    if(target<k){ mctx.clearRect(0,0,W2,H2); k=-1 }
+    if(target>=0){
+      mctx.beginPath();
+      const s0=Math.max(0,k);
+      mctx.moveTo((d.cover.pts[s0][0]+50)*u,(d.cover.pts[s0][1]+50)*u);
+      for(let j=s0+1;j<=target;j++) mctx.lineTo((d.cover.pts[j][0]+50)*u,(d.cover.pts[j][1]+50)*u);
+      mctx.stroke();
+    }
+    cache.ki=target;
+  }
+  // --- 2. sketsa vektor (inkremental) ---
+  if(d.strokes&&d.strokes.length){
+    const targetLen=f.sketch*(d.sketchLen||0);
+    let si=cache.si, acc=cache.skDone;
+    if(targetLen<acc-0.001){ sctx.clearRect(0,0,W2,H2); si=0; acc=0 }
+    sctx.strokeStyle=d.sketchColor||'#23232b'; sctx.lineCap='round'; sctx.lineJoin='round';
+    sctx.lineWidth=Math.max(1,(d.brush||46)*0.16/(Math.abs(l.sx||200)/200)*u);
+    for(;si<d.strokes.length;si++){
+      const st=d.strokes[si];
+      const rest=targetLen-acc;
+      if(rest<=0) break;
+      const drawLen=Math.min(rest,st.len);
+      sctx.beginPath();
+      sctx.moveTo((st.pts[0][0]+50)*u,(st.pts[0][1]+50)*u);
+      let a2=0, partial=false;
+      for(let i=1;i<st.pts.length;i++){
+        const segL=Math.hypot(st.pts[i][0]-st.pts[i-1][0],st.pts[i][1]-st.pts[i-1][1]);
+        if(a2+segL<=drawLen+1e-6){ sctx.lineTo((st.pts[i][0]+50)*u,(st.pts[i][1]+50)*u); a2+=segL }
+        else { const r=(drawLen-a2)/Math.max(1e-6,segL);
+          sctx.lineTo((st.pts[i-1][0]+(st.pts[i][0]-st.pts[i-1][0])*r+50)*u,(st.pts[i-1][1]+(st.pts[i][1]-st.pts[i-1][1])*r+50)*u);
+          a2=drawLen; partial=true; break }
+      }
+      sctx.stroke();
+      if(partial){ acc+=drawLen; break }
+      acc+=st.len;
+    }
+    cache.si=si; cache.skDone=acc;
+  }
+  cache.t=T;
+  // --- 3. komposit ke kanvas kerja ---
+  const work=_drawWork._cv, wctx=_drawWork._cx;
+  if(work.width!==W2||work.height!==H2){ work.width=W2; work.height=H2 }
+  wctx.setTransform(1,0,0,1,0,0); wctx.globalAlpha=1; wctx.globalCompositeOperation='source-over';
+  wctx.clearRect(0,0,W2,H2);
+  if(l._dimg&&d.cover){
+    const tmp=_drawWork._tmp, tctx=_drawWork._tx;
+    if(tmp.width!==W2||tmp.height!==H2){ tmp.width=W2; tmp.height=H2 }
+    tctx.setTransform(1,0,0,1,0,0); tctx.globalAlpha=1; tctx.globalCompositeOperation='source-over';
+    tctx.clearRect(0,0,W2,H2);
+    tctx.drawImage(l._dimg,0,0,W2,H2);
+    tctx.globalCompositeOperation='destination-in';
+    tctx.drawImage(cache.mask,0,0);
+    wctx.drawImage(tmp,0,0);
+  }
+  // sketsa memudar saat warna selesai
+  const mctx2=cache.man.getContext('2d');
+  mctx2.setTransform(1,0,0,1,0,0); mctx2.clearRect(0,0,W2,H2);
+  drawManualInto(mctx2,l,W2);
+  wctx.save();
+  wctx.globalAlpha=1-0.8*f.color;
+  wctx.drawImage(cache.sk,0,0);
+  wctx.restore();
+  wctx.drawImage(cache.man,0,0);
+  // --- 4. pena di kepala gambar ---
+  if(d.mode!=='instant'&&(f.sketch<1||f.color<1)&&(f.sketch>0||f.color>0)){
+    let hx=null,hy=null;
+    if(f.color>0&&d.cover&&d.cover.pts.length){ const k=Math.min(d.cover.pts.length-1,Math.floor(f.color*(d.cover.pts.length-1))); hx=d.cover.pts[k][0]; hy=d.cover.pts[k][1] }
+    else if(d.strokes&&d.strokes.length){ const s=d.strokes[Math.min(d.strokes.length-1,Math.floor(f.sketch*d.strokes.length))]; const p=s.pts[s.pts.length-1]; hx=p[0]; hy=p[1] }
+    if(hx!==null){
+      const br=Math.max(2,(d.brush||46)/2/(Math.abs(l.sx||200)/200)*u);
+      const cxp=(hx+50)*u, cyp=(hy+50)*u;
+      wctx.save();
+      wctx.strokeStyle='#111'; wctx.lineWidth=Math.max(1.5,br*0.16);
+      wctx.beginPath(); wctx.arc(cxp,cyp,Math.max(3,br*0.62),0,Math.PI*2); wctx.stroke();
+      wctx.fillStyle='#111';
+      wctx.beginPath(); wctx.arc(cxp,cyp,Math.max(1.5,br*0.14),0,Math.PI*2); wctx.fill();
+      wctx.restore();
+    }
+  }
+  c.save(); c.beginPath(); c.rect(-50,-50,100,100); c.clip();
+  c.drawImage(work,-50,-50,100,100);
+  c.restore();
+}
+const _drawWork={ _cv:document.createElement('canvas'), _tmp:document.createElement('canvas'),
+  get _cx(){ return this._cv.getContext('2d') }, get _tx(){ return this._tmp.getContext('2d') } };
+// Ubah gambar input jadi rencana auto-draw (sketsa tepi + sapuan warna).
+// Berjalan bertahap (onProg 0..1) agar UI tidak macet.
+async function autoDrawFromImage(imgEl, l, onProg){
+  const d=l.draw, P=S.active;
+  const prog=(f,m)=>{ try{ onProg&&onProg(f,m) }catch{} };
+  const tick=()=>new Promise(r=>setTimeout(r,0));
+  prog(0.05,'Menyiapkan citra…'); await tick();
+  const iw=imgEl.naturalWidth||imgEl.width, ih=imgEl.naturalHeight||imgEl.height;
+  const rs=Math.min(1,480/Math.max(iw,ih));
+  const rc=document.createElement('canvas');
+  rc.width=Math.max(2,Math.round(iw*rs)); rc.height=Math.max(2,Math.round(ih*rs));
+  rc.getContext('2d').drawImage(imgEl,0,0,rc.width,rc.height);
+  try{ d.refData=rc.toDataURL('image/jpeg',0.85) }catch{ d.refData=null }
+  l._dimg=imgEl;
+  const upc=1/(Math.abs(l.sx||200)/200);
+  prog(0.15,'Mendeteksi tepi…'); await tick();
+  const ew=220, eh=Math.max(2,Math.round(220*ih/iw));
+  const ec=document.createElement('canvas'); ec.width=ew; ec.height=eh;
+  const ectx=ec.getContext('2d',{willReadFrequently:true});
+  ectx.drawImage(imgEl,0,0,ew,eh);
+  const id=ectx.getImageData(0,0,ew,eh).data;
+  const gray=new Uint8Array(ew*eh);
+  for(let i=0;i<ew*eh;i++) gray[i]=(id[i*4]+id[i*4+1]+id[i*4+2])/3;
+  const edge=sobelEdges(gray,ew,eh,110);
+  prog(0.45,'Merangkai sketsa…'); await tick();
+  const raw=chainStrokes(edge,ew,eh,2.2,3,6000);
+  d.strokes=raw.map(pts=>{
+    const bp=pts.map(p=>[p[0]/ew*100-50,p[1]/eh*100-50]);
+    return { pts:bp, len:polyLen(bp), cum:null };
+  });
+  d.sketchLen=strokesTotalLen(d.strokes);
+  prog(0.65,'Menyusun sapuan warna…'); await tick();
+  const spacing=Math.max(1.2,(d.brush||46)*0.6*upc);
+  const cov=serpentinePath(100,100,spacing);
+  d.cover={ pts:cov.pts, cum:cov.cum };
+  d.coverLen=cov.total;
+  // waktu: panjang comp-px / kecepatan pena, dibagi recordSpeed (timelapse)
+  const skComp=d.sketchLen/upc, cvComp=cov.total/upc;
+  const plan=planTiming(skComp,cvComp,d.penSpeed||900,d.recordSpeed||1);
+  d.sketchMs=plan.sketchMs; d.colorMs=plan.colorMs;
+  d.rev=(d.rev||0)+1;
+  prog(1,'Selesai');
+  return plan;
+}
+function drawEtaText(l){
+  const d=l.draw; if(!d) return '';
+  if(d.mode==='instant') return 'Mode Instant: hasil langsung penuh.';
+  const total=(d.sketchMs||0)+(d.colorMs||0);
+  return 'Human Draw: sketsa '+fmtEta(d.sketchMs||0)+' + warna '+fmtEta(d.colorMs||0)+' = video '+fmtEta(total)+'.';
+}
+/* Panel alat gambar (AM-style, bottom sheet). */
+function renderDrawPanel(el,l){
+  const d=l.draw;
+  if(!d){ el.innerHTML='<div class="iq-status">Layer ini bukan gambar.</div>'; return }
+  el.innerHTML='';
+  const head=document.createElement('div'); head.className='mini-row';
+  const tTools=document.createElement('button'); tTools.className='mini';
+  tTools.textContent='Alat: '+(S.drawTool==='brush'?'Kuas':S.drawTool==='eraser'?'Penghapus':'Pilih');
+  tTools.onclick=()=>{ S.drawTool=S.drawTool==='brush'?'eraser':S.drawTool==='eraser'?null:'brush'; renderBottom(); toast(S.drawTool?'Gambar langsung di preview':'Alat gambar mati') };
+  const tMode=document.createElement('button'); tMode.className='mini';
+  tMode.textContent='Mode: '+(d.mode==='human'?'Human Draw':'Instant');
+  tMode.onclick=()=>{ pushUndo(); d.mode=d.mode==='human'?'instant':'human'; d.rev=(d.rev||0)+1; afterChange(); renderBottom() };
+  const tClear=document.createElement('button'); tClear.className='mini'; tClear.textContent='Bersihkan';
+  tClear.onclick=()=>{ pushUndo(); d.strokes=[]; d.manual=[]; d.cover=null; d.sketchLen=0; d.coverLen=0; d.sketchMs=0; d.colorMs=0; d.rev=(d.rev||0)+1; afterChange(); renderBottom() };
+  head.append(tTools,tMode,tClear); el.appendChild(head);
+  const row2=document.createElement('div'); row2.className='mini-row';
+  const bAuto=document.createElement('button'); bAuto.className='mini'; bAuto.textContent='Auto Draw (dari gambar)';
+  bAuto.onclick=()=>$('#drawPick').click();
+  const bBack=document.createElement('button'); bBack.className='mini'; bBack.textContent='Kembali';
+  bBack.onclick=()=>{ S.sub='edit'; S.drawTool=null; renderBottom() };
+  row2.append(bAuto,bBack); el.appendChild(row2);
+  const cols=['#111111','#E14E7A','#3DDC84','#6ACDE0','#FFFFFF','#FFB020'];
+  const cRow=document.createElement('div'); cRow.className='mini-row';
+  cols.forEach(cc=>{
+    const b=document.createElement('button'); b.className='mini'; b.style.background=cc; b.textContent=' ';
+    b.onclick=()=>{ d.brushColor=cc; renderBottom() };
+    cRow.appendChild(b);
+  });
+  el.appendChild(cRow);
+  sliderRow(el,'Ukuran',d.brush||46,4,160,v=>{ d.brush=v },{live:true});
+  sliderRow(el,'Speed',d.penSpeed||900,60,4000,v=>{ pushUndo(); d.penSpeed=v; replanDraw(l); renderBottom() });
+  const rsRow=document.createElement('div'); rsRow.className='mini-row';
+  const rsLb=document.createElement('span'); rsLb.style.cssText='color:#fff;font-size:13px;align-self:center';
+  rsLb.textContent='Record: '+d.recordSpeed+'x';
+  rsRow.appendChild(rsLb);
+  [0.5,1,2,4,8].forEach(rv=>{
+    const b=document.createElement('button'); b.className='mini'; b.textContent=rv+'x';
+    b.onclick=()=>{ pushUndo(); d.recordSpeed=rv; replanDraw(l); renderBottom() };
+    rsRow.appendChild(b);
+  });
+  el.appendChild(rsRow);
+  const eta=document.createElement('div'); eta.className='iq-status';
+  eta.textContent=drawEtaText(l)+' Kuas '+(d.brush||46)+'px · warna '+(d.brushColor||'#111111');
+  el.appendChild(eta);
+  const prog=document.createElement('div'); prog.className='iq-status'; prog.id='drawProg'; prog.hidden=true;
+  el.appendChild(prog);
+}
+// Hitung ulang durasi dari kecepatan tanpa mengubah goresan.
+function replanDraw(l){
+  const d=l.draw, P=S.active; if(!d||!P) return;
+  const upc=1/(Math.abs(l.sx||200)/200);
+  const plan=planTiming((d.sketchLen||0)/upc,(d.coverLen||0)/upc,d.penSpeed||900,d.recordSpeed||1);
+  d.sketchMs=plan.sketchMs; d.colorMs=plan.colorMs;
+  if(d.mode==='human'){ P.durationMs=Math.max(1000,plan.totalMs); l.endMs=P.durationMs }
+  d.rev=(d.rev||0)+1;
+  afterChange();
+}
+function drawManualInto(g,l,W2){
+  const u=W2/100;
+  for(const s of (l.draw.manual||[])){
+    if(!s.pts||s.pts.length<1) continue;
+    g.strokeStyle=s.color||'#111'; g.lineWidth=Math.max(1,(s.w||6)*u);
+    g.lineCap='round'; g.lineJoin='round';
+    g.globalCompositeOperation=s.eraser?'destination-out':'source-over';
+    g.beginPath();
+    g.moveTo((s.pts[0][0]+50)*u,(s.pts[0][1]+50)*u);
+    for(let i=1;i<s.pts.length;i++) g.lineTo((s.pts[i][0]+50)*u,(s.pts[i][1]+50)*u);
+    g.stroke();
+  }
+  g.globalCompositeOperation='source-over';
+}
 function pushUndo(){ if(!S.active) return; S.undoStack.push(JSON.stringify(S.active)); if(S.undoStack.length>40)S.undoStack.shift(); S.redoStack.length=0; }
 
 /* ---------- home ---------- */
@@ -82,6 +333,25 @@ function drawThumb(cv,p){
 
 /* ---------- create sheet ---------- */
 let cpAspect='9:16', cpW=960, cpH=1560, cpFps=60, cpBg='#00A651', cpBgName='Hijau';
+let drRatio='9:16', drRes=1080, drBg='#FFFFFF';
+function syncDrSub(){ const d=paperDims(drRatio,drRes); $('#drResSub').textContent='Sisi panjang: '+drRes+'px → '+d.w+' X '+d.h }
+// Kertas gambar baru (proyek + 1 layer drawing full-bleed).
+function createDrawPaper(){
+  const name=($('#cpName').value||'Gambar Baru').slice(0,48);
+  const d=paperDims(drRatio,drRes);
+  const p=defaultProject(name,d.w,d.h,60,drBg);
+  p.drawProject=true;
+  S.projects.unshift(p); saveProjects(S.projects); closeCreate();
+  S.active=p; S.T=0; S.playing=false; S.sel=null; S.showAdd=false; S.undoStack=[]; S.redoStack=[];
+  const l=makeDrawingLayer(); p.layers.push(l);
+  S.sel=l.id; S.sub='draw';
+  hydratePresetMedia(p);
+  $('#viewHome').classList.remove('active'); $('#viewEditor').classList.add('active');
+  $('#edName').value=p.name;
+  sizePreview(); renderLayerBar(); renderBottom(); requestAnimationFrame(loop);
+  warmGL();
+  toast('Kertas siap — pilih Auto Draw atau Kuas');
+}
 const AR_MAP={'16:9':[960,540],'9:16':[960,1560],'4:5':[1080,1350],'1:1':[1080,1080],'4:3':[960,720]};
 function openCreate(){ $('#sheetCreate').hidden=false; }
 function closeCreate(){ $('#sheetCreate').hidden=true; }
@@ -104,7 +374,14 @@ function bindCreate(){
   $('#iqClear').onclick=clearPresetCache;
   $('#cpFile').onchange=e=>{ const f=e.target.files[0]; if(f) loadFilePreset(f, $('#cpStatus')) };
   $('#iqFile').onchange=e=>{ const f=e.target.files[0]; if(f) loadFilePreset(f, $('#iqStatus')) };
-  $$('.seg-btn').forEach(b=>b.onclick=()=>{$$('.seg-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
+  $$('.seg-btn').forEach(b=>b.onclick=()=>{$$('.seg-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    const tab=b.dataset.tab==='drawing'?'drawing':'proyek';
+    $('#cpProyekWrap').hidden=tab!=='proyek'; $('#cpDrawWrap').hidden=tab!=='drawing' });
+  // --- tab drawing: kertas ala ibis ---
+  $$('#drawRatioRow button').forEach(b=>b.onclick=()=>{ $$('#drawRatioRow button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); drRatio=b.dataset.dr; syncDrSub() });
+  $$('#drResRow button').forEach(b=>b.onclick=()=>{ drRes=+b.dataset.dres||1080; syncDrSub() });
+  $('#drBg').onclick=()=>{ const opts=[['Putih','#FFFFFF'],['Hitam','#000000'],['Krem','#F5EFE0'],['Abu','#9AA0AA']]; const cur=opts.findIndex(o=>o[1]===drBg); const nx=opts[(cur+1)%opts.length]; drBg=nx[1]; $('#drBg').innerHTML='<span class="dot" style="background:'+drBg+'"></span> '+nx[0] };
+  $('#cpDrawCreate').onclick=createDrawPaper;
 }
 /* Preset tersimpan di local device (localStorage), BUKAN di server.
    Tombol ini mengosongkannya + meminta server membuang cache paket
@@ -325,6 +602,7 @@ function bindEditor(){
   $('#expRes').onclick=()=>{ const l=$('#expResList'); l.hidden=!l.hidden };
   $$('#expResList button').forEach(b=>b.onclick=()=>{ $('#expRes').textContent=b.textContent; $('#expResList').hidden=true });
   $('#mediaPick').onchange=handleMediaPick;
+  $('#drawPick').onchange=handleDrawPick;
   $('#layerAdd').onclick=()=>{ S.showAdd=true; renderBottom() };
   document.addEventListener('keydown',e=>{
     if(e.target.matches('input,textarea')) return;
@@ -596,6 +874,7 @@ function rasterContent(l, T, tf, metricsOnly){
   if(l.shadow?.on){ c.shadowColor=l.shadow.color||'#000'; c.shadowBlur=(l.shadow.blur||12)*sc; c.shadowOffsetX=(l.shadow.dx||0)*sc; c.shadowOffsetY=(l.shadow.dy||0)*sc }
   if(l.type==='text'&&l.text){ drawText(c,l,T) }
   else if((l.type==='image'||l.type==='video')&&l.mediaSrc){ drawMedia(c,l,T) }
+  else if(l.type==='drawing'&&l.draw){ drawDrawing(c,l,T) }
   else { drawShape(c,l) }
   if(l.border?.on){ c.shadowColor='transparent'; c.shadowBlur=0; c.lineWidth=l.border.width||4; c.strokeStyle=l.border.color||'#fff'; strokeShape(c,l) }
   c.restore();
@@ -710,6 +989,7 @@ function drawLayer(ctx, l, time=S.T){
   if(l.shadow?.on){ wctx.shadowColor=l.shadow.color||'#000'; wctx.shadowBlur=l.shadow.blur||12; wctx.shadowOffsetX=l.shadow.dx||0; wctx.shadowOffsetY=l.shadow.dy||0 }
   if(l.type==='text'&&l.text){ drawText(wctx,l,T) }
   else if((l.type==='image'||l.type==='video')&&l.mediaSrc){ drawMedia(wctx,l,T) }
+  else if(l.type==='drawing'&&l.draw){ drawDrawing(wctx,l,T) }
   else { drawShape(wctx,l) }
   if(l.border?.on){ wctx.shadowColor='transparent'; wctx.shadowBlur=0; wctx.lineWidth=l.border.width||4; wctx.strokeStyle=l.border.color||'#fff'; strokeShape(wctx,l) }
   wctx.restore();
@@ -1220,6 +1500,7 @@ function renderBottom(){
   if(add) add.hidden=!!(P.layers.find(l=>l.id===S.sel)||S.showAdd);
   const sel=P.layers.find(l=>l.id===S.sel);
   if(sel){
+    if(S.sub==='draw'){ renderDrawPanel(el,sel); return }
     if(!S.sub||S.sub==='edit'){ renderEditMenu(el,sel); return }
     if(S.sub==='move'){ renderMove(el,sel); return }
     if(S.sub==='color'){ renderColor(el,sel); return }
@@ -1264,10 +1545,11 @@ function renderAddPanel(el){
   const t3=tabBtn('','Audio',false,()=>{cur='audio';draw()});
   const t4=tabBtn('','Objek / Elemen',false,()=>{cur='obj';draw()});
   const t5=tabBtn('','Template',false,()=>{cur='tpl';draw()});
-  tabs.append(t1,t2,t3,t4,t5);
+  const t6=tabBtn('','Gambar',false,()=>{cur='gambar';draw()});
+  tabs.append(t1,t2,t3,t4,t5,t6);
   function draw(){
-    [t1,t2,t3,t4,t5].forEach(b=>b.classList.remove('active'));
-    ({bentuk:t1,media:t2,audio:t3,obj:t4,tpl:t5}[cur]).classList.add('active');
+    [t1,t2,t3,t4,t5,t6].forEach(b=>b.classList.remove('active'));
+    ({bentuk:t1,media:t2,audio:t3,obj:t4,tpl:t5,gambar:t6}[cur]).classList.add('active');
     main.innerHTML='';
     if(cur==='bentuk'){
       const g=document.createElement('div');g.className='shape-grid';
@@ -1291,6 +1573,13 @@ function renderAddPanel(el){
     if(cur==='tpl'){ const g=document.createElement('div');g.className='media-grid';
       ['New Pr 117','Get2on Cc','My Min','New Pr 111'].forEach(t=>{const c=document.createElement('div');c.className='media-cell';c.innerHTML='<div style="height:72px;background:#3AA655"></div><small>'+t+'</small>';c.onclick=()=>toast('Template '+t+' dimuat sebagai proyek baru');g.appendChild(c)});
       main.appendChild(g) }
+    if(cur==='gambar'){ const g=document.createElement('div');g.className='media-grid';
+      const bPaper=document.createElement('button');bPaper.className='media-cell';bPaper.innerHTML='<div style="padding:22px">+</div><small>Kertas Gambar</small>';
+      bPaper.onclick=()=>{ pushUndo(); const l=makeDrawingLayer(); S.active.layers.push(l); S.sel=l.id; S.sub='draw'; S.showAdd=false; afterChange() };
+      const bAuto=document.createElement('button');bAuto.className='media-cell';bAuto.innerHTML='<div style="padding:22px">✎</div><small>Auto Draw</small>';
+      bAuto.onclick=()=>runAutoDraw();
+      const note=document.createElement('div');note.className='iq-status';note.textContent='Engine menggambar ulang citra goresan demi goresan.';
+      g.append(bPaper,bAuto); main.append(g,note) }
   }
   right.innerHTML='<button>Gambar Freehand</button><button>Gambar Vektor</button><button>Teks</button><button id="bpX">X</button>';
   right.querySelectorAll('button')[2].onclick=()=>{ pushUndo(); const l=makeText('Teks baru'); S.active.layers.push(l); S.sel=l.id; S.sub='edit'; afterChange() };
@@ -1306,6 +1595,35 @@ function addShape(k){
 }
 function addAudio(t){ pushUndo(); const l=makeShape('rect'); l.type='audio'; l.name=t; l.color='#6ACDE0'; S.active.layers.push(l); afterChange(); toast('Audio ditambah: '+t) }
 function addObj(k,t){ pushUndo(); const l=makeShape('rect'); l.type=k==='cam'?'camera':k; l.name=t; l.color='#3A405E'; S.active.layers.push(l); S.sel=l.id; S.sub='edit'; afterChange() }
+function runAutoDraw(){
+  if(!S.active) return;
+  let l=S.active.layers.find(x=>x.id===S.sel&&x.type==='drawing');
+  if(!l){ pushUndo(); l=makeDrawingLayer(); S.active.layers.push(l); S.sel=l.id }
+  S.sub='draw'; S.showAdd=false; renderBottom();
+  $('#drawPick').click();
+}
+async function handleDrawPick(e){
+  const f=e.target.files[0]; e.target.value='';
+  if(!f||!S.active) return;
+  const l=S.active.layers.find(x=>x.id===S.sel&&x.type==='drawing');
+  if(!l){ toast('Pilih layer gambar dulu'); return }
+  const url=URL.createObjectURL(f);
+  const img=new Image();
+  img.onload=async()=>{
+    const prog=()=>$( '#drawProg');
+    try{
+      pushUndo();
+      const plan=await autoDrawFromImage(img,l,(fr,m)=>{ const p=prog(); if(p){p.hidden=false;p.textContent='Auto Draw '+Math.round(fr*100)+'% — '+m} });
+      if(l.draw.mode==='human'){ S.active.durationMs=Math.max(1000,plan.totalMs); l.endMs=S.active.durationMs }
+      l.draw.rev=(l.draw.rev||0)+1;
+      afterChange(); renderBottom();
+      toast('Auto Draw siap: '+drawEtaText(l));
+    }catch(err){ toast('Auto Draw gagal: '+((err&&err.message)||err)) }
+    finally{ const p=prog(); if(p) p.hidden=true; try{URL.revokeObjectURL(url)}catch{} }
+  };
+  img.onerror=()=>{ toast('Gambar tidak terbaca'); try{URL.revokeObjectURL(url)}catch{} };
+  img.src=url;
+}
 function handleMediaPick(e){
   const f=e.target.files[0]; if(!f||!S.active)return;
   pushUndo(); const url=URL.createObjectURL(f);
@@ -1335,6 +1653,7 @@ function renderEditMenu(el, l){
     ['Presets',()=>{S.sub='presets';renderBottom()}],
     ['Efek',()=>{S.sub='fx';renderBottom()}],
   ];
+  if(l.type==='drawing') items.unshift(['Menggambar',()=>{S.sub='draw';renderBottom()}]);
   items.forEach(([t,fn])=>{const b=document.createElement('button');b.className='prop-btn';b.innerHTML='<span>'+t+'</span>';b.onclick=fn;grid.appendChild(b)});
   const del=document.createElement('div');del.className='mini-row';
   const bd=document.createElement('button');bd.className='mini';bd.textContent='Hapus layer';bd.onclick=()=>{pushUndo();S.active.layers=S.active.layers.filter(x=>x.id!==l.id);S.sel=null;S.sub=null;afterChange()};
@@ -2325,11 +2644,55 @@ function bindTimelineGestures(){
 }
 
 /* preview drag */
+function compToBox(l,px,py){
+  // px comp -> unit kotak -50..50 (abaikan skew; rotasi diperhitungkan).
+  const T=S.T;
+  const x=evalProp(l,'x',T), y=evalProp(l,'y',T);
+  let dx=0,dy=0,drot=0,tsx=1,tsy=1;
+  try{ const tr=applyTransformFx(l.fx||[],T,evalFxParam,S.active.durationMs,l);
+    dx=tr.dx||0; dy=tr.dy||0; drot=tr.drot||0; tsx=tr.sx||1; tsy=tr.sy||1 }catch{}
+  const rot=((evalProp(l,'rot',T)||0)+drot)*Math.PI/180;
+  const sxu=Math.max(0.2,Math.abs(evalProp(l,'sx',T)||200)/200*tsx);
+  const syu=Math.max(0.2,Math.abs(evalProp(l,'sy',T)||200)/200*tsy);
+  const qx=px-x-dx, qy=py-y-dy;
+  const ca=Math.cos(-rot), sa=Math.sin(-rot);
+  return [(qx*ca-qy*sa)/sxu,(qx*sa+qy*ca)/syu,sxu];
+}
 function bindPreviewDrag(){
   const cv=$('#preview');let drag=null;
-  cv.addEventListener('pointerdown',e=>{const l=S.active?.layers.find(x=>x.id===S.sel);if(!l)return;drag={x:e.clientX,y:e.clientY,lx:l.x,ly:l.y};cv.setPointerCapture(e.pointerId)});
-  cv.addEventListener('pointermove',e=>{if(!drag)return;const r=cv.getBoundingClientRect();const sx=S.active.w/r.width,sy=S.active.h/r.height;const l=S.active.layers.find(x=>x.id===S.sel);if(!l)return;l.x=drag.lx+(e.clientX-drag.x)*sx;l.y=drag.ly+(e.clientY-drag.y)*sy;updateSelectBox()});
-  cv.addEventListener('pointerup',()=>{if(drag){pushUndo();drag=null;renderBottom()}});
+  cv.addEventListener('pointerdown',e=>{
+    const l=S.active?.layers.find(x=>x.id===S.sel);if(!l)return;
+    // Mode kuas: gambar langsung di preview, bukan geser layer.
+    if(l.type==='drawing'&&l.draw&&S.drawTool){
+      e.preventDefault();
+      pushUndo();
+      const r=cv.getBoundingClientRect();
+      const px=(e.clientX-r.left)*(S.active.w/r.width), py=(e.clientY-r.top)*(S.active.h/r.height);
+      const [bx,by,sxu]=compToBox(l,px,py);
+      const st={pts:[[bx,by]],color:S.drawTool==='eraser'?'#000000':(l.draw.brushColor||'#111111'),
+        w:(l.draw.brush||46)/sxu,eraser:S.drawTool==='eraser'};
+      l.draw.manual.push(st);
+      drag={draw:true};
+      try{cv.setPointerCapture(e.pointerId)}catch{}
+      renderFrame(); return;
+    }
+    drag={x:e.clientX,y:e.clientY,lx:l.x,ly:l.y};try{cv.setPointerCapture(e.pointerId)}catch{}
+  });
+  cv.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    if(drag.draw){
+      const l=S.active?.layers.find(x=>x.id===S.sel);
+      if(!l||!l.draw) return;
+      const r=cv.getBoundingClientRect();
+      const px=(e.clientX-r.left)*(S.active.w/r.width), py=(e.clientY-r.top)*(S.active.h/r.height);
+      const [bx,by]=compToBox(l,px,py);
+      const st=l.draw.manual[l.draw.manual.length-1];
+      if(st){ const q=st.pts[st.pts.length-1];
+        if(Math.hypot(bx-q[0],by-q[1])>0.35){ st.pts.push([bx,by]); renderFrame() } }
+      return;
+    }
+    const r=cv.getBoundingClientRect();const sx=S.active.w/r.width,sy=S.active.h/r.height;const l=S.active.layers.find(x=>x.id===S.sel);if(!l)return;l.x=drag.lx+(e.clientX-drag.x)*sx;l.y=drag.ly+(e.clientY-drag.y)*sy;updateSelectBox()});
+  cv.addEventListener('pointerup',()=>{if(drag){const wasDraw=drag.draw;drag=null;if(wasDraw){const l=S.active?.layers.find(x=>x.id===S.sel);if(l&&l.draw)l.draw.rev=(l.draw.rev||0)+1;afterChange()}else{pushUndo();renderBottom()}}});
 }
 
 /* ============================================================

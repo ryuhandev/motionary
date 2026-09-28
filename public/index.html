@@ -92,8 +92,9 @@
 <!-- CREATE SHEET -->
 <div id="sheetCreate" class="sheet-mask" hidden>
 <div class="sheet light-sheet">
-<div class="seg"><button class="seg-btn active" data-tab="proyek">PROYEK</button><button class="seg-btn" data-tab="elemen">ELEMEN</button></div>
+<div class="seg"><button class="seg-btn active" data-tab="proyek">PROYEK</button><button class="seg-btn" data-tab="drawing">DRAWING</button></div>
 <div class="field-name"><input id="cpName" value="Proyek Baru 92" maxlength="60"><button id="cpClear" aria-label="Hapus">X</button></div>
+<div id="cpProyekWrap">
 <div class="aspect-row" id="aspectRow">
 <button data-ar="16:9">16:9</button>
 <button data-ar="9:16" class="tall active">9:16</button>
@@ -118,6 +119,24 @@
 <div id="cpProjList" class="cp-proj-list"></div>
 </div>
 <div class="cp-foot"><button id="cpCreate" class="btn-text">BUAT PROYEK</button></div>
+</div>
+<div id="cpDrawWrap" hidden>
+<div class="cp-label">Rasio kertas (ibis-style)</div>
+<div class="aspect-row" id="drawRatioRow">
+<button data-dr="1:1">1:1</button>
+<button data-dr="4:3">4:3</button>
+<button data-dr="3:4">3:4</button>
+<button data-dr="16:9">16:9</button>
+<button data-dr="9:16" class="tall active">9:16</button>
+<button data-dr="4:5">4:5</button>
+<button data-dr="A4" class="tall">A4</button>
+<button data-dr="A4-L">A4</button>
+</div>
+<div class="cp-row"><div class="cp-label">Resolusi kertas<div class="cp-sub" id="drResSub">Sisi panjang: 1080px</div></div>
+<div class="cp-res" id="drResRow"><button class="cp-select" data-dres="720">720</button><button class="cp-select" data-dres="1080">1080</button><button class="cp-select" data-dres="1440">1440</button></div></div>
+<div class="cp-row"><div class="cp-label">Warna kertas</div><button class="cp-select" id="drBg"><span class="dot" style="background:#ffffff"></span> Putih</button></div>
+<div class="cp-foot"><button id="cpDrawCreate" class="btn-text">BUAT KERTAS</button></div>
+</div>
 <button id="sheetClose" class="sheet-x" aria-label="Tutup">X</button>
 </div>
 </div>
@@ -216,6 +235,7 @@
 </div>
 
 <input type="file" id="mediaPick" accept="image/*,video/*,audio/*" hidden>
+<input type="file" id="drawPick" accept="image/*" hidden>
 <div id="toast" class="toast" hidden></div>
 </div>
 </div>
