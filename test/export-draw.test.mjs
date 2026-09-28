@@ -81,3 +81,19 @@ describe('planTiming + fmtEta + revealAt', () => {
     assert.deepEqual([c.sketch, c.color], [1, 1]);
   });
 });
+
+describe('recordSpeedForTarget — custom durasi pas', () => {
+  it('basis 30 dtk -> target 60 dtk = 0.5x', async () => {
+    const { recordSpeedForTarget } = await import('../public/js/draw-engine.js');
+    assert.equal(recordSpeedForTarget(30000, 60000), 0.5);
+  });
+  it('basis 120 dtk -> target 60 dtk = 2x', async () => {
+    const { recordSpeedForTarget } = await import('../public/js/draw-engine.js');
+    assert.equal(recordSpeedForTarget(120000, 60000), 2);
+  });
+  it('clamp 0.1..16x', async () => {
+    const { recordSpeedForTarget } = await import('../public/js/draw-engine.js');
+    assert.equal(recordSpeedForTarget(1000000, 1000), 16);
+    assert.equal(recordSpeedForTarget(1000, 3600000), 0.1);
+  });
+});

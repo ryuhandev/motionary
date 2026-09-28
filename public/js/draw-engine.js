@@ -132,6 +132,14 @@ export function fmtEta(ms) {
   return m + ' mnt ' + String(s % 60).padStart(2, '0') + ' dtk';
 }
 
+// recordSpeed yg dibutuhkan agar total pas targetMs (dari basis recordSpeed=1).
+export function recordSpeedForTarget(baseTotalMs, targetMs) {
+  const base = Math.max(500, baseTotalMs);
+  const tgt = Math.max(500, targetMs);
+  const rs = base / tgt;
+  return Math.max(0.1, Math.min(16, Math.round(rs * 100) / 100));
+}
+
 // Fraksi reveal tiap fase dari T proyek (ms).
 export function revealAt(T, sketchMs, colorMs, mode) {
   if (mode === 'instant') return { sketch: 1, color: 1 };

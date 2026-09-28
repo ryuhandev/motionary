@@ -2,7 +2,7 @@ import { FX_CATALOG, applyFxStack, applyTransformFx, fxDefault } from './fx.js';
 import { parseAMXML, xmlToProject, EXAMPLE_LINK, fontStackFor } from './preset.js';
 import * as AMGL from './amgl.js';
 import { framePlanForExport, audioChunkTimestampUs, dimsForTargetShort, bitrateForRes, cameraZoomOf, RES_SHORT_STEPS, qualityKeyOf, qualityDef, videoBitrate, estimateBytes, fmtSize } from './export-plan.js';
-import { PAPER_RATIOS, PAPER_RES, paperDims, serpentinePath, sobelEdges, chainStrokes, polyLen, strokesTotalLen, planTiming, fmtEta, revealAt } from './draw-engine.js';
+import { PAPER_RATIOS, PAPER_RES, paperDims, serpentinePath, sobelEdges, chainStrokes, polyLen, strokesTotalLen, planTiming, fmtEta, revealAt, recordSpeedForTarget } from './draw-engine.js';
 
 const $ = (s)=>document.querySelector(s);
 const $$ = (s)=>[...document.querySelectorAll(s)];
@@ -275,6 +275,27 @@ function renderDrawPanel(el,l){
     rsRow.appendChild(b);
   });
   el.appendChild(rsRow);
+  // Target durasi custom: mis. pas 60 dtk -> recordSpeed dihitung otomatis.
+  const tgRow=document.createElement('div'); tgRow.className='mini-row';
+  const tgLb=document.createElement('span'); tgLb.style.cssText='color:#fff;font-size:13px;align-self:center';
+  tgLb.textContent='Target:';
+  const tgIn=document.createElement('input'); tgIn.type='number'; tgIn.min='1'; tgIn.max='3600';
+  tgIn.value=Math.round((S.active?.durationMs||5000)/1000);
+  tgIn.style.cssText='width:76px;background:#2E3450;border:none;border-radius:8px;color:#fff;padding:10px';
+  const tgU=document.createElement('span'); tgU.style.cssText='color:#fff;font-size:13px;align-self:center'; tgU.textContent='dtk';
+  const tgGo=document.createElement('button'); tgGo.className='mini'; tgGo.textContent='Pas';
+  const applyTg=()=>{
+    const sec=Math.max(1,Math.min(3600,+tgIn.value||0));
+    if(!sec) return;
+    pushUndo();
+    if(d.mode==='instant'){ S.active.durationMs=sec*1000; l.endMs=S.active.durationMs; afterChange(); renderBottom(); return }
+    const upc=1/(Math.abs(l.sx||200)/200);
+    const base=planTiming((d.sketchLen||0)/upc,(d.coverLen||0)/upc,d.penSpeed||900,1);
+    d.recordSpeed=recordSpeedForTarget(base.sketchMs+base.colorMs,sec*1000);
+    replanDraw(l); renderBottom();
+  };
+  tgIn.onchange=applyTg; tgGo.onclick=applyTg;
+  tgRow.append(tgLb,tgIn,tgU,tgGo); el.appendChild(tgRow);
   const eta=document.createElement('div'); eta.className='iq-status';
   eta.textContent=drawEtaText(l)+' Kuas '+(d.brush||46)+'px · warna '+(d.brushColor||'#111111');
   el.appendChild(eta);
